@@ -4,7 +4,7 @@
 
 | Layer | Tool | M0 coverage |
 | --- | --- | --- |
-| Backend unit/API | pytest + httpx | health, auth/session, settings bounds and auditing, persona age/ownership/version immutability, batch isolation, mock content disclosure, approval gate and owner isolation. |
+| Backend unit/API | pytest + httpx | health, auth/session, settings bounds and auditing, persona age/ownership/version immutability, batch isolation, mock content/image disclosure, media validation/preview/deletion, approval gate and owner isolation. |
 | Database integration | pytest + aiosqlite test DB | ORM model metadata and schema behaviors used by M0 endpoints. PostgreSQL migration is exercised in Compose. |
 | Frontend unit | Vitest + Testing Library | login form, honest dashboard states, adult persona draft submission. |
 | Static checks | Ruff, mypy, ESLint, `tsc --noEmit` | formatting/lint/type correctness. |
@@ -38,3 +38,5 @@ See `PROGRESS.md` for the actual commands/results. Backend production image buil
 - M4: timezone/DST, duplicate schedule prevention, approval gate, idempotency and `uncertain` reconciliation.
 - M5/M7: recorded official-API contract fixtures for success, expired token, permission, validation, rate limit, timeout and unavailable endpoint. Live smoke tests require separate explicitly authorized credentials.
 - M8: backup/restore drill, health/restart recovery, TLS/security headers, load test and Playwright suite.
+
+Image foundation coverage includes deterministic mock output, PNG integrity rejection, approved-persona authorization, metadata persistence, preview, deletion, and cross-owner isolation. Live provider contract tests are intentionally not present until a provider is selected and credentials are supplied.

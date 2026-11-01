@@ -9,6 +9,7 @@ const navigation = [
   ["/personas", "Persona"],
   ["/personas/onboarding", "Onboarding persona"],
   ["/content", "Konten"],
+  ["/media", "Media library"],
   ["/calendar", "Kalender"],
   ["/publishing", "Antrean publikasi"],
   ["/campaign-links", "Campaign & link"],

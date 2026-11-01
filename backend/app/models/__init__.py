@@ -1,7 +1,7 @@
 """SQLAlchemy models."""
 
 from app.models.audit_log import AuditLog
-from app.models.content import ApprovalEvent, ContentItem, ContentVersion, GenerationJob
+from app.models.content import ApprovalEvent, ContentItem, ContentVersion, GenerationJob, MediaAsset
 from app.models.notification import Notification
 from app.models.persona import Persona, PersonaBatch, PersonaCandidate, PersonaVersion
 from app.models.session import Session
@@ -14,6 +14,7 @@ __all__ = [
     "ContentItem",
     "ContentVersion",
     "GenerationJob",
+    "MediaAsset",
     "Notification",
     "Persona",
     "PersonaBatch",

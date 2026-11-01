@@ -32,7 +32,7 @@ Indexes: `users(email)`, `sessions(token_hash)`, and `sessions(user_id, expires_
 | --- | --- | --- |
 | Social connection | `connected_accounts`, `social_targets` | owner FK; platform enum; encrypted token envelope never returned; target unique per connected account/external ID. |
 | Personas | `personas`, `persona_versions`, `persona_batches`, `persona_candidates` implemented; `persona_assignments` planned | owner FK; adult-age checks; unique immutable approval versions; batch selections must match the owner and batch. |
-| Generation/media | `generation_jobs`, `generation_attempts`, `provider_usage`, `media_assets` | status check constraints; attempt sequence unique per job; media checksum unique within owner; provider cost nullable unless supplied by provider. |
+| Generation/media | `generation_jobs`, `generation_attempts`, `provider_usage`, `media_assets` | status check constraints; attempt sequence unique per job; media metadata/checksum and storage key are owner-scoped; image bytes stay outside PostgreSQL. |
 | Content/review | `content_items`, `content_versions`, `approval_events` | content must reference owner/persona/version; publishing eligibility requires latest approval event; append-only approval events. |
 | Publishing | `schedules`, `publishing_jobs`, `publishing_attempts`, `publication_reconciliations` | target capability constraint; idempotency key unique per owner/target; only approved content creates a job; `uncertain` requires reconciliation before a new submit. |
 | Campaign/analytics | `campaigns`, `campaign_links`, `analytics_snapshots` | user-entered link provenance; snapshots unique per source/entity/metric/period/retrieved version. |
@@ -57,4 +57,6 @@ Migration `20261030_0004` creates `persona_batches` and `persona_candidates`. Ba
 
 ## Implemented content factory tables
 
-Migration `20261030_0005` adds `generation_jobs`, `content_items`, `content_versions`, and `approval_events`. The current caption MVP stores a synchronous mock-template generation as a succeeded job, then stores its resulting draft/version. `approval_events` references the immutable version reviewed. Real provider attempts, usage/cost data, image media assets, and asynchronous worker state transitions remain outstanding.
+Migration `20261030_0005` adds `generation_jobs`, `content_items`, `content_versions`, and `approval_events`. The current caption MVP stores a synchronous mock-template generation as a succeeded job, then stores its resulting draft/version. `approval_events` references the immutable version reviewed. Real provider attempts, usage/cost data, and asynchronous worker state transitions remain outstanding.
+
+Migration `20261101_0006` adds `media_assets`. The current mock image flow stores validated PNGs through local object storage and persists MIME type, size, dimensions, checksum, prompt, and provider/model provenance. Production must replace the local adapter with an authenticated S3-compatible implementation.

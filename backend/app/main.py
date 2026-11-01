@@ -4,7 +4,17 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import audit_logs, auth, content, dashboard, health, notifications, personas, settings
+from app.api import (
+    audit_logs,
+    auth,
+    content,
+    dashboard,
+    health,
+    media,
+    notifications,
+    personas,
+    settings,
+)
 from app.core.config import get_settings
 from app.db.session import SessionLocal, engine
 from app.services.auth import create_initial_admin
@@ -38,4 +48,5 @@ app.include_router(settings.router, prefix="/api/v1")
 app.include_router(audit_logs.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(content.router, prefix="/api/v1")
+app.include_router(media.router, prefix="/api/v1")
 app.include_router(personas.router, prefix="/api/v1")

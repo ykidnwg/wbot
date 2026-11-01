@@ -89,3 +89,17 @@ Batch approval creates a persona and immutable approved version for each selecte
 - `POST /api/v1/content/{content_id}/approval` accepts `{"decision":"approved"|"rejected","reason": optional}`. It only accepts items in `draft`, records an immutable event against the current content version, and changes the item status.
 
 No image asset is produced, no asynchronous queue is involved, and draft caption editing/version increments are not yet available. These endpoints do not publish content.
+
+## Image generation and media
+
+All routes require a session and scope by the authenticated owner. The current provider is explicitly `mock/solid-png-v1`; it never calls a paid external API.
+
+| Method/path | Purpose |
+| --- | --- |
+| `GET /media/provider` | Return provider/model, `mock` mode, and health. |
+| `POST /media/generate` | Generate a validated image for an owned approved persona; request is `{ "persona_id": "uuid", "prompt": "..." }`. |
+| `GET /media?page=1&page_size=50` | List owned media metadata. |
+| `GET /media/{asset_id}/preview` | Stream an owned image with its stored MIME type. |
+| `DELETE /media/{asset_id}` | Delete an owned object and its metadata. |
+
+Image bytes are stored outside PostgreSQL through an object-storage boundary. The current local adapter is development-only; S3-compatible production storage and live provider credentials are not configured.

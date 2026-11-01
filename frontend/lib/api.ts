@@ -90,6 +90,43 @@ export type ContentVersion = {
   created_at: string;
 };
 
+export type MediaAsset = {
+  id: string;
+  persona_id: string;
+  mime_type: string;
+  size_bytes: number;
+  width: number;
+  height: number;
+  checksum: string;
+  provider: string;
+  model: string;
+  prompt: string;
+  created_at: string;
+};
+
+export async function getMedia(signal?: AbortSignal): Promise<MediaAsset[]> {
+  const response = await fetch("/api/backend/media", { credentials: "same-origin", signal });
+  if (response.status === 401) throw new Error("unauthorized");
+  if (!response.ok) throw new Error("media-unavailable");
+  const payload: { items: MediaAsset[] } = await response.json();
+  return payload.items;
+}
+
+export async function generateImage(input: {
+  persona_id: string;
+  prompt: string;
+}): Promise<MediaAsset> {
+  const response = await fetch("/api/backend/media/generate", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (response.status === 401) throw new Error("unauthorized");
+  if (!response.ok) throw new Error("image-generation-failed");
+  return (await response.json()) as MediaAsset;
+}
+
 export async function getContent(signal?: AbortSignal): Promise<ContentItem[]> {
   const response = await fetch("/api/backend/content", { credentials: "same-origin", signal });
   if (response.status === 401) throw new Error("unauthorized");

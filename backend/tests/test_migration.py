@@ -33,6 +33,11 @@ def test_initial_migration_is_repeatable() -> None:
             "persona_versions",
             "persona_batches",
             "persona_candidates",
+            "generation_jobs",
+            "content_items",
+            "content_versions",
+            "approval_events",
+            "media_assets",
         }
         assert expected.issubset(tables), f"Missing tables: {expected - tables}"
     finally:

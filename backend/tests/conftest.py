@@ -30,6 +30,7 @@ from app.models import (  # noqa: F401, E402
     ContentItem,
     ContentVersion,
     GenerationJob,
+    MediaAsset,
     Notification,
     Persona,
     PersonaBatch,

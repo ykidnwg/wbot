@@ -116,3 +116,33 @@ class ApprovalEvent(Base):
     decision: Mapped[str] = mapped_column(String(12))
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class MediaAsset(Base):
+    __tablename__ = "media_assets"
+    __table_args__ = (
+        CheckConstraint(
+            "mime_type IN ('image/png', 'image/jpeg', 'image/webp')",
+            name="ck_media_assets_mime_type",
+        ),
+        CheckConstraint("size_bytes > 0", name="ck_media_assets_size"),
+        CheckConstraint("width > 0 AND height > 0", name="ck_media_assets_dimensions"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    owner_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    persona_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("personas.id", ondelete="RESTRICT"), index=True
+    )
+    storage_key: Mapped[str] = mapped_column(String(500), unique=True)
+    mime_type: Mapped[str] = mapped_column(String(80))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    width: Mapped[int] = mapped_column(Integer)
+    height: Mapped[int] = mapped_column(Integer)
+    checksum: Mapped[str] = mapped_column(String(64), index=True)
+    provider: Mapped[str] = mapped_column(String(120))
+    model: Mapped[str] = mapped_column(String(120))
+    prompt: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

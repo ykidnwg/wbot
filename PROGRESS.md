@@ -1,16 +1,28 @@
 # Progress
 
+## 2026-11-01 — Image/media foundation
+
+- Added typed `ImageProvider` and deterministic `MockImageProvider` (`mock/solid-png-v1`).
+- Added owner-scoped `media_assets` migration `20261101_0006`, validated PNG metadata/checksums, and a local object-storage implementation behind a storage boundary. Image bytes are not stored in PostgreSQL.
+- Added authenticated image generation, provider status, listing, preview, and deletion endpoints. Generation requires an owned approved adult persona.
+- Added media API tests for deterministic output, validation, preview/deletion, and owner isolation.
+- No paid/live image provider is enabled. Official OpenAI image documentation was reviewed, but live adapter implementation is deferred until provider selection, credentials, cost policy, and contract fixtures are approved.
+
+Remaining: S3-compatible production adapter, reference-image workflows, asynchronous jobs/workers, budgets/retries, and live provider integration.
+
+Validation: Docker backend production build passed Ruff, mypy, and `32` pytest tests. Frontend lint (no errors), TypeScript, Vitest (`4` tests), and Next production build passed after restoring dependencies. Host Python checks remain unavailable because the local interpreter lacks `typing_extensions` and has a broken standard-library `html.entities`; these are environment issues, not repository dependency changes.
+
 ## 2026-10-30 — Content factory MVP
 
 - Added owner-scoped generation jobs, content items, immutable caption versions, and append-only approval events in Alembic migration `20261030_0005`.
-- Added a typed `CaptionProvider` interface and deterministic `MockCaptionProvider`; generated drafts are visibly identified as `mock/template-v1`. This is not an external AI integration. Image generation remains unconfigured.
+- Added a typed `CaptionProvider` interface and deterministic `MockCaptionProvider`; generated drafts are visibly identified as `mock/template-v1`. This is not an external AI integration. Image generation is now available only through the separate deterministic mock media flow.
 - Added API/UI for draft creation from an approved owned persona, content listing, and explicit approve/reject decisions. Approval records the exact content version reviewed; non-drafts cannot be reviewed again.
 - Added API tests for draft persona rejection, mock provider disclosure, approval gate, and owner isolation.
 - Backend checks pass: Ruff, mypy (`45` source files), `29` pytest tests, and production image build. Frontend ESLint, TypeScript, `4` Vitest tests, and production image build pass.
 - `docker compose up -d` applied migration `0005`; PostgreSQL, Redis, backend, and frontend remained healthy.
 - Live PostgreSQL/API smoke passed: create a mock caption draft for an approved persona, verify persisted listing and generation-job ID, approve the exact draft, reject repeated approval with HTTP `409`, and load `/content` with HTTP `200`.
 
-Remaining content factory work includes caption editing/version increments, real provider integrations, async worker execution, image generation/media storage, cost controls, and retries.
+Remaining content factory work includes real provider integrations, async worker execution, cost controls, and retries.
 
 ## 2026-10-30 — Operational controls and persona onboarding
 

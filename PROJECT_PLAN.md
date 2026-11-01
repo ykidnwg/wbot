@@ -46,7 +46,7 @@ Implemented so far: adult persona drafts, immutable approved snapshots, versions
 
 ### M3 — generation and approval factory
 
-Implementation status: partial; deterministic mock caption drafts and approval events are implemented. Async jobs, caption editing/versions, image generation, media assets, provider usage, retry/cost controls, and background execution remain.
+Implementation status: partial; deterministic mock caption drafts, approval events, and the first mock image/media foundation are implemented. Async jobs, provider usage, retry/cost controls, live image integrations, and background execution remain.
 
 - Provider interfaces and explicit mock provider; no paid provider is called in tests.
 - Durable generation jobs, provider usage, content items, versions, approval events.
