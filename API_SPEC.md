@@ -103,3 +103,23 @@ All routes require a session and scope by the authenticated owner. The current p
 | `DELETE /media/{asset_id}` | Delete an owned object and its metadata. |
 
 Image bytes are stored outside PostgreSQL through an object-storage boundary. The current local adapter is development-only; S3-compatible production storage and live provider credentials are not configured.
+
+## Facebook social accounts and targets
+
+All routes require an authenticated session and owner-scope every query.
+
+| Method/path | Purpose |
+| --- | --- |
+| `GET /social/provider-status` | Return configured/`NEEDS_CREDENTIALS` status, Graph version, and requested permissions. |
+| `GET /social/connections` | List owned Facebook authorizations without tokens. |
+| `GET /social/targets` | List discovered owned Facebook Pages and current assigned persona IDs. |
+| `GET /social/assignments` | List active owner-scoped persona assignments. |
+| `GET /social/oauth/facebook/start` | Create one-time OAuth state and return the server-built Meta authorization URL. |
+| `GET /social/oauth/facebook/callback?state=…&code=…` | Validate state, exchange code server-side, discover Pages, and persist encrypted tokens. |
+| `POST /social/targets/{target_id}/assignment` | Assign an owned approved persona to an active owned target. |
+| `DELETE /social/targets/{target_id}/assignment` | Remove the active assignment. |
+| `DELETE /social/connections/{connection_id}` | Mark an owned connection revoked; managed targets are removed by FK cascade. |
+
+The Facebook adapter uses the official Pages API permissions documented in
+`docs/integrations/facebook-pages.md`. It does not implement publishing in this
+milestone. No live OAuth claim is made while credentials are absent.

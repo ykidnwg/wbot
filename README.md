@@ -19,7 +19,7 @@ Invoke-RestMethod http://localhost:8000/health/live
 Invoke-RestMethod http://localhost:8000/health/ready
 ```
 
-The API is available at `http://localhost:8000`; interactive API documentation is at `/docs` in development. The dashboard, operational settings, persona drafts, adult-age validation, approval versions, bulk onboarding, mock caption drafts, and mock image/media preview are available after login. Live AI providers, accounts, calendar, publishing, campaigns, and analytics remain unconfigured. PostgreSQL and Redis have no published host ports. The API port is published for local development; production deployment must put the web app/API behind HTTPS and publish neither database nor Redis.
+The API is available at `http://localhost:8000`; interactive API documentation is at `/docs` in development. The dashboard, operational settings, persona drafts, adult-age validation, approval versions, bulk onboarding, mock caption drafts, mock image/media preview, and the Facebook social-account foundation are available after login. Meta OAuth shows `NEEDS_CREDENTIALS` until private backend configuration is supplied. Publishing, calendar, campaigns, and analytics remain unconfigured. PostgreSQL and Redis have no published host ports. The API port is published for local development; production deployment must put the web app/API behind HTTPS and publish neither database nor Redis.
 
 Stop services with `docker compose down`. Persistent database/Redis data stays in named volumes. `docker compose down -v` permanently removes that local data.
 
@@ -35,6 +35,7 @@ Use Python 3.14 and Node.js 22 with npm 10. Install backend development dependen
 - Only official social APIs may be used. No scraping or browser login automation is part of this project.
 - Provider and platform integration status remains `not_configured` / `NEEDS_CREDENTIALS` until its official contract, credentials, and tests exist.
 - Image generation currently uses a deterministic `MOCK` provider only. Image bytes use local development storage; production requires an authenticated S3-compatible adapter. No API key is exposed to the frontend.
+- Facebook OAuth configuration is server-only. Page access tokens are encrypted with AES-GCM and never returned to the frontend. See [Facebook Pages integration](docs/integrations/facebook-pages.md).
 - All counts on the initial dashboard are actual empty database-backed values; external metrics and generation cost are shown unavailable.
 
 ## Deployment status

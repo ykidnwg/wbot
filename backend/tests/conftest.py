@@ -32,12 +32,16 @@ from app.models import (  # noqa: F401, E402
     GenerationJob,
     MediaAsset,
     Notification,
+    OAuthState,
     Persona,
+    PersonaAssignment,
     PersonaBatch,
     PersonaCandidate,
     PersonaVersion,
     Session,
     Setting,
+    SocialConnection,
+    SocialTarget,
     User,
 )
 

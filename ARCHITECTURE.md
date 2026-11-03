@@ -69,4 +69,10 @@ Persona draft and batch operations always scope reads by `owner_id`. Approving a
 
 The image boundary now has a typed `ImageProvider` and deterministic `MockImageProvider`. Generated PNG bytes are validated for MIME type, size, dimensions, CRCs, and decompression integrity before being written through an object-storage-shaped local adapter. PostgreSQL stores only owner-scoped metadata, checksum, provider/model provenance, and storage key. The live provider boundary remains unconfigured; reference-image identity is not promised.
 
+The social boundary uses a generic Meta adapter contract with a Facebook implementation.
+OAuth state is short-lived, hashed, owner-scoped, and one-time consumed. Connections and
+Pages are owner-scoped; tokens are encrypted with AES-GCM. Persona assignments reference
+only approved personas and active social targets. The current milestone discovers Pages but
+does not publish content.
+
 Development uses `docker compose up --build`. Production will use a separate override and Caddy configuration after domain, storage, backup target, and credentials are supplied. PostgreSQL/Redis stay on the private Compose network; credentials come from a secret manager or deployment environment, not `compose.yml`. Backups, restore verification, image pruning, and rollback procedure are documented before M8 approval.

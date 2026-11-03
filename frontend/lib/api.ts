@@ -104,6 +104,81 @@ export type MediaAsset = {
   created_at: string;
 };
 
+export type SocialConnection = {
+  id: string;
+  platform: "facebook";
+  external_account_id: string;
+  display_name: string;
+  status: "connected" | "needs_reconnect" | "revoked" | "error";
+  token_expires_at: string | null;
+  last_synced_at: string | null;
+  error_message: string | null;
+};
+
+export type SocialTarget = {
+  id: string;
+  connection_id: string;
+  platform: "facebook";
+  external_target_id: string;
+  display_name: string;
+  username: string | null;
+  profile_image_url: string | null;
+  status: "active" | "needs_reconnect" | "disabled" | "error";
+  last_synced_at: string | null;
+  assigned_persona_id: string | null;
+};
+
+export type SocialProviderStatus = {
+  provider: string;
+  status: "configured" | "NEEDS_CREDENTIALS";
+  graph_api_version: string;
+  required_permissions: string[];
+};
+
+async function socialRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`/api/backend/social${path}`, {
+    credentials: "same-origin",
+    ...init,
+  });
+  if (response.status === 401) throw new Error("unauthorized");
+  if (!response.ok) {
+    const payload: { detail?: string } = await response.json();
+    throw new Error(payload.detail ?? "social-request-failed");
+  }
+  if (response.status === 204) return undefined as T;
+  return (await response.json()) as T;
+}
+
+export async function getSocialProviderStatus(): Promise<SocialProviderStatus> {
+  return socialRequest<SocialProviderStatus>("/provider-status");
+}
+
+export async function getSocialConnections(): Promise<SocialConnection[]> {
+  const payload = await socialRequest<{ items: SocialConnection[] }>("/connections");
+  return payload.items;
+}
+
+export async function getSocialTargets(): Promise<SocialTarget[]> {
+  const payload = await socialRequest<{ items: SocialTarget[] }>("/targets");
+  return payload.items;
+}
+
+export async function startFacebookOAuth(): Promise<{ authorization_url: string }> {
+  return socialRequest<{ authorization_url: string }>("/oauth/facebook/start");
+}
+
+export async function assignPersonaToTarget(targetId: string, personaId: string): Promise<void> {
+  await socialRequest(`/targets/${encodeURIComponent(targetId)}/assignment`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ persona_id: personaId }),
+  });
+}
+
+export async function removePersonaAssignment(targetId: string): Promise<void> {
+  await socialRequest(`/targets/${encodeURIComponent(targetId)}/assignment`, { method: "DELETE" });
+}
+
 export async function getMedia(signal?: AbortSignal): Promise<MediaAsset[]> {
   const response = await fetch("/api/backend/media", { credentials: "same-origin", signal });
   if (response.status === 401) throw new Error("unauthorized");

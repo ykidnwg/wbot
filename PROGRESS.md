@@ -1,5 +1,15 @@
 # Progress
 
+## 2026-11-01 — Social account foundation
+
+- Added forward migration `20261101_0007` for encrypted Facebook connections, OAuth states, social targets, and persona assignments.
+- Added server-side Meta OAuth/Page discovery adapter boundaries with hashed one-time OAuth state, strict redirect matching, encrypted token storage, owner-scoped APIs, and honest `NEEDS_CREDENTIALS` status when Meta configuration is absent.
+- Added Social Accounts UI with search, target selection, assignment controls, loading/empty/error states, responsive navigation, and reusable workspace design tokens.
+- Approved personas can be assigned only to owned active social targets; assignment and connection lifecycle changes are audited. Disconnecting a connection marks its targets `needs_reconnect` without exposing tokens.
+- Docker backend validation passed Ruff, strict mypy, and `35` pytest tests. Live Meta OAuth was not tested because credentials were not configured. Frontend validation remains the previously recorded passing ESLint, TypeScript, Vitest, and Next production build.
+
+Remaining: configured Meta callback/Page discovery testing, publishing, Instagram/Threads/X adapters, workers, scheduling, analytics, budget enforcement, and production deployment.
+
 ## 2026-11-01 — Image/media foundation
 
 - Added typed `ImageProvider` and deterministic `MockImageProvider` (`mock/solid-png-v1`).

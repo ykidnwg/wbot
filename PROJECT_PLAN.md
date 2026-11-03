@@ -36,13 +36,13 @@ Current package versions are deliberately exact in the manifests. They were sele
 
 Implemented so far: initial owner-scoped admin/session foundation, settings API/UI with bounds and audit, audit log/notification base, navigation, and honest status pages. Remaining: roles, rate limiting, structured operational logging, and enforcement/worker execution for kill switch, budgets, retries, and concurrency.
 
-### M2 — personas and asset safety (partial)
+### M2 — personas, social targets, and asset safety (partial)
 
 - Personas, immutable approved versions, assignments, reference-image metadata and safe upload pipeline.
 - Bulk candidate batches with isolated regeneration and draft/resume state.
 - Object-storage abstraction (S3-compatible) and media validation/virus-scanning decision.
 
-Implemented so far: adult persona drafts, immutable approved snapshots, versions, and resumable bulk candidate batches with isolated selection/approval. Regeneration is explicitly unavailable until an AI provider is configured. Social targets/assignments, reference uploads, object storage, and upload safety remain outstanding.
+Implemented so far: adult persona drafts, immutable approved snapshots, versions, resumable bulk candidate batches, owner-scoped Facebook OAuth state, encrypted connection/target metadata, and approved-persona assignments. Live Meta use remains `NEEDS_CREDENTIALS`; reference uploads and production object storage remain outstanding.
 
 ### M3 — generation and approval factory
 

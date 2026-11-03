@@ -14,6 +14,7 @@ from app.api import (
     notifications,
     personas,
     settings,
+    social,
 )
 from app.core.config import get_settings
 from app.db.session import SessionLocal, engine
@@ -49,4 +50,5 @@ app.include_router(audit_logs.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(content.router, prefix="/api/v1")
 app.include_router(media.router, prefix="/api/v1")
+app.include_router(social.router, prefix="/api/v1")
 app.include_router(personas.router, prefix="/api/v1")

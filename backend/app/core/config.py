@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     session_ttl_hours: int = Field(default=24, ge=1, le=24 * 30)
     initial_admin_email: str | None = None
     initial_admin_password: str | None = Field(default=None, repr=False)
+    meta_app_id: str | None = None
+    meta_app_secret: str | None = Field(default=None, repr=False)
+    meta_oauth_redirect_uri: str | None = None
+    meta_graph_api_version: str = "v26.0"
+    token_encryption_key: str | None = Field(default=None, repr=False)
 
     @model_validator(mode="after")
     def validate_security_configuration(self) -> Settings:

@@ -6,6 +6,7 @@ from app.models.notification import Notification
 from app.models.persona import Persona, PersonaBatch, PersonaCandidate, PersonaVersion
 from app.models.session import Session
 from app.models.setting import Setting
+from app.models.social import OAuthState, PersonaAssignment, SocialConnection, SocialTarget
 from app.models.user import User
 
 __all__ = [
@@ -22,5 +23,9 @@ __all__ = [
     "PersonaVersion",
     "Session",
     "Setting",
+    "OAuthState",
+    "PersonaAssignment",
+    "SocialConnection",
+    "SocialTarget",
     "User",
 ]
