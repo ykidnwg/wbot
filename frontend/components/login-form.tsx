@@ -20,8 +20,8 @@ export function LoginForm() {
     } catch (requestError: unknown) {
       setError(
         requestError instanceof Error && requestError.message === "invalid-credentials"
-          ? "Email atau kata sandi tidak valid."
-          : "Login tidak tersedia. Periksa koneksi backend dan konfigurasi administrator.",
+          ? "Email or password is invalid."
+          : "Sign-in is unavailable. Check the backend connection and administrator configuration.",
       );
     } finally {
       setIsSubmitting(false);
@@ -30,7 +30,7 @@ export function LoginForm() {
 
   return (
     <form className="mt-8 grid gap-5" onSubmit={handleSubmit} noValidate>
-      <label className="grid gap-2 text-sm font-medium" htmlFor="email">
+      <label className="label" htmlFor="email">
         Email
         <input
           id="email"
@@ -39,11 +39,11 @@ export function LoginForm() {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
-          className="rounded-md border border-[var(--border)] bg-white px-3 py-2.5 text-base"
+          className="field text-base"
         />
       </label>
-      <label className="grid gap-2 text-sm font-medium" htmlFor="password">
-        Kata sandi
+      <label className="label" htmlFor="password">
+        Password
         <input
           id="password"
           type="password"
@@ -51,16 +51,12 @@ export function LoginForm() {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required
-          className="rounded-md border border-[var(--border)] bg-white px-3 py-2.5 text-base"
+          className="field text-base"
         />
       </label>
       {error ? <p role="alert" className="text-sm text-[var(--danger)]">{error}</p> : null}
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="rounded-md bg-[var(--primary)] px-4 py-2.5 font-medium text-white hover:bg-[var(--primary-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {isSubmitting ? "Memverifikasi…" : "Masuk"}
+      <button type="submit" disabled={isSubmitting} className="btn btn-primary w-full">
+        {isSubmitting ? "Verifying…" : "Sign in"}
       </button>
     </form>
   );

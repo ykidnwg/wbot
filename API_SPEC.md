@@ -123,3 +123,63 @@ All routes require an authenticated session and owner-scope every query.
 The Facebook adapter uses the official Pages API permissions documented in
 `docs/integrations/facebook-pages.md`. It does not implement publishing in this
 milestone. No live OAuth claim is made while credentials are absent.
+
+## Providers and scheduling (implemented)
+
+All routes require an authenticated owner session unless noted.
+
+### `GET /providers`
+
+Returns safe provider status for caption, image, and Facebook publishing. No key, token, or secret is included. `status` is `mock`, `configured`, or `NEEDS_CREDENTIALS`.
+
+### `GET /schedules`
+
+Owner-scoped list, ordered by time. Supports `page`, `page_size`, `status`, `start`, and `end`.
+
+### `POST /schedules`
+
+Creates a schedule for owned approved content and an owned active target whose persona assignment matches. Body: `content_item_id`, `social_target_id`, `scheduled_for` (ISO datetime), `timezone`, optional `idempotency_key`. A datetime without an offset is interpreted in the supplied IANA timezone; an offset-bearing datetime is converted to UTC. Repeating the same request returns the existing schedule.
+
+### `DELETE /schedules/{schedule_id}`
+
+Cancels only a `scheduled` row. Returns the cancelled schedule. A 404 is returned for another owner's id.
+
+### `GET /publishing/jobs`
+
+Owner-scoped job list with optional `status` and pagination. Each job exposes attempts, external post id/URL, safe error category/summary, and next retry time.
+
+### `GET /publishing/jobs/{job_id}`
+
+Job detail plus append-only attempt history.
+
+### `POST /publishing/jobs/{job_id}/retry`
+
+Manually requeues a `failed` or `needs_credentials` job. `uncertain` jobs, including jobs recovered after a worker crash, cannot be retried through this endpoint until the platform has been checked.
+
+## Campaigns, tracked links, and analytics (implemented)
+
+### `GET|POST /campaigns`
+
+List or create owned campaigns. Creation validates HTTP(S) destinations, rejects embedded credentials, and requires an approved persona when one is supplied.
+
+### `GET /campaigns/{campaign_id}` and `PATCH /campaigns/{campaign_id}/status`
+
+Read an owned campaign or change its status.
+
+### `GET|POST /campaigns/{campaign_id}/links`
+
+List or create tracked affiliate links. Responses include `tracking_path` (`/r/{tracking_id}`) and an attributed `destination_url`.
+
+### `GET /r/{tracking_id}` (public)
+
+Records one first-party click and redirects `302` to the stored destination with UTM and `wbot_tracking_id` appended. Unknown ids return 404. Responses are `no-store` and `no-referrer`.
+
+### `GET /analytics?days=30`
+
+Returns only first-party aggregates: content/publishing counts, upcoming schedules, clicks by day, campaign click totals, and link click totals. External reach, impressions, revenue, and AI cost are not fabricated.
+
+## Content media attachment
+
+### `PUT /content/{content_id}/media`
+
+Body: `{ "media_asset_id": "<uuid or null>" }`. Accepts only an owned `media_assets` image. Attaching new media to an approved item returns it to `draft` so a human re-approves the exact post. A changed attachment creates a new immutable content version containing the image id; `GET /content/{id}/versions` exposes `media_asset_id` per version.

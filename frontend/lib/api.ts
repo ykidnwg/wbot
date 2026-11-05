@@ -67,10 +67,103 @@ export type Persona = {
   updated_at: string;
 };
 
+export type ProviderStatus = {
+  id: string;
+  label: string;
+  kind: string;
+  mode: string;
+  status: string;
+  model: string;
+  api_base: string | null;
+  message: string | null;
+};
+
+export type Schedule = {
+  id: string;
+  content_item_id: string;
+  social_target_id: string;
+  scheduled_for: string;
+  timezone: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PublishingJob = {
+  id: string;
+  schedule_id: string | null;
+  content_item_id: string;
+  social_target_id: string;
+  platform: string;
+  status: string;
+  attempts: number;
+  external_post_id: string | null;
+  published_url: string | null;
+  error_category: string | null;
+  error_summary: string | null;
+  next_retry_at: string | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+};
+
+export type Campaign = {
+  id: string;
+  persona_id: string | null;
+  name: string;
+  description: string | null;
+  platform: string;
+  destination_url: string | null;
+  status: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CampaignLink = {
+  id: string;
+  campaign_id: string;
+  label: string;
+  affiliate_url: string;
+  tracking_id: string;
+  tracking_path: string;
+  destination_url: string;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_term: string | null;
+  utm_content: string | null;
+  created_at: string;
+};
+
+export type Analytics = {
+  summary: {
+    total_content: number;
+    published_content: number;
+    approved_content: number;
+    upcoming_schedules: number;
+    failed_publishing_jobs: number;
+    total_clicks: number;
+    active_campaigns: number;
+    tracked_links: number;
+  };
+  clicks_by_day: Array<{ date: string; value: number }>;
+  campaign_performance: Array<{ campaign_id: string; name: string; status: string; clicks: number }>;
+  link_performance: Array<{
+    link_id: string;
+    label: string;
+    tracking_id: string;
+    campaign_name: string;
+    clicks: number;
+  }>;
+};
+
 export type ContentItem = {
   id: string;
   persona_id: string;
   generation_job_id: string;
+  media_asset_id: string | null;
   platform: string;
   topic: string;
   caption: string;
@@ -190,6 +283,7 @@ export async function getMedia(signal?: AbortSignal): Promise<MediaAsset[]> {
 export async function generateImage(input: {
   persona_id: string;
   prompt: string;
+  aspect_ratio?: string;
 }): Promise<MediaAsset> {
   const response = await fetch("/api/backend/media/generate", {
     method: "POST",
@@ -416,4 +510,128 @@ export async function getDashboardSummary(signal?: AbortSignal): Promise<Dashboa
     throw new Error("dashboard-unavailable");
   }
   return (await response.json()) as DashboardSummary;
+}
+
+async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`/api/backend${path}`, {
+    credentials: "same-origin",
+    ...init,
+  });
+  if (response.status === 401) throw new Error("unauthorized");
+  if (!response.ok) {
+    let detail = "Request failed";
+    try {
+      const payload: { detail?: string } = await response.json();
+      detail = payload.detail ?? detail;
+    } catch {
+      // Keep the generic message when the body is not JSON.
+    }
+    throw new Error(detail);
+  }
+  if (response.status === 204) return undefined as T;
+  return (await response.json()) as T;
+}
+
+export async function getProviders(): Promise<ProviderStatus[]> {
+  const payload = await apiRequest<{ items: ProviderStatus[] }>("/providers");
+  return payload.items;
+}
+
+export async function getSchedules(signal?: AbortSignal): Promise<Schedule[]> {
+  const payload = await apiRequest<{ items: Schedule[] }>("/schedules?page_size=200", { signal });
+  return payload.items;
+}
+
+export async function createSchedule(input: {
+  content_item_id: string;
+  social_target_id: string;
+  scheduled_for: string;
+  timezone: string;
+}): Promise<Schedule> {
+  return apiRequest<Schedule>("/schedules", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function cancelSchedule(id: string): Promise<Schedule> {
+  return apiRequest<Schedule>(`/schedules/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export async function getPublishingJobs(signal?: AbortSignal): Promise<PublishingJob[]> {
+  const payload = await apiRequest<{ items: PublishingJob[] }>("/publishing/jobs?page_size=100", {
+    signal,
+  });
+  return payload.items;
+}
+
+export async function retryPublishingJob(id: string): Promise<PublishingJob> {
+  return apiRequest<PublishingJob>(`/publishing/jobs/${encodeURIComponent(id)}/retry`, {
+    method: "POST",
+  });
+}
+
+export async function getCampaigns(signal?: AbortSignal): Promise<Campaign[]> {
+  const payload = await apiRequest<{ items: Campaign[] }>("/campaigns?page_size=100", { signal });
+  return payload.items;
+}
+
+export async function createCampaign(input: {
+  name: string;
+  platform: string;
+  destination_url?: string;
+  description?: string;
+}): Promise<Campaign> {
+  return apiRequest<Campaign>("/campaigns", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function setCampaignStatus(id: string, status: string): Promise<Campaign> {
+  return apiRequest<Campaign>(`/campaigns/${encodeURIComponent(id)}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function getCampaignLinks(campaignId: string, signal?: AbortSignal): Promise<CampaignLink[]> {
+  return apiRequest<CampaignLink[]>(`/campaigns/${encodeURIComponent(campaignId)}/links`, {
+    signal,
+  });
+}
+
+export async function createCampaignLink(
+  campaignId: string,
+  input: {
+    label: string;
+    affiliate_url: string;
+    utm_source?: string;
+    utm_medium?: string;
+    utm_campaign?: string;
+  },
+): Promise<CampaignLink> {
+  return apiRequest<CampaignLink>(`/campaigns/${encodeURIComponent(campaignId)}/links`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function getAnalytics(signal?: AbortSignal): Promise<Analytics> {
+  return apiRequest<Analytics>("/analytics?days=30", { signal });
+}
+
+export async function attachContentMedia(
+  contentId: string,
+  mediaAssetId: string | null,
+): Promise<ContentItem> {
+  return apiRequest<ContentItem>(`/content/${encodeURIComponent(contentId)}/media`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ media_asset_id: mediaAssetId }),
+  });
 }

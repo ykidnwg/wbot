@@ -12,12 +12,16 @@ class CaptionGenerationRequest(BaseModel):
     platform: str = Field(
         default="unassigned", pattern="^(facebook|instagram|threads|x|unassigned)$"
     )
+    aspect_ratio: str = Field(
+        default="square", pattern="^(square|portrait|vertical|landscape)$"
+    )
 
 
 class ContentItemResponse(BaseModel):
     id: UUID
     persona_id: UUID
     generation_job_id: UUID
+    media_asset_id: UUID | None = None
     platform: str
     topic: str
     caption: str
@@ -40,6 +44,10 @@ class ContentApprovalRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=2000)
 
 
+class ContentMediaAttachRequest(BaseModel):
+    media_asset_id: UUID | None = None
+
+
 class ContentCaptionUpdateRequest(BaseModel):
     caption: str = Field(min_length=1, max_length=10000)
 
@@ -49,6 +57,7 @@ class ContentVersionResponse(BaseModel):
     content_item_id: UUID
     version_no: int
     caption: str
+    media_asset_id: UUID | None = None
     provider: str
     created_at: datetime
 

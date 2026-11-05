@@ -76,4 +76,29 @@ DEFAULT_SETTINGS: dict[str, dict[str, str]] = {
         "value_type": "integer",
         "description": "Max API requests per user per minute",
     },
+    "caption_provider": {
+        "value": "mock",
+        "value_type": "string",
+        "description": "Caption provider: mock or openai",
+    },
+    "image_provider": {
+        "value": "mock",
+        "value_type": "string",
+        "description": "Image provider: mock or openai",
+    },
+    "caption_model": {
+        "value": "gpt-4o-mini",
+        "value_type": "string",
+        "description": "Caption model identifier for the selected provider",
+    },
+    "image_model": {
+        "value": "gpt-image-1",
+        "value_type": "string",
+        "description": "Image model identifier for the selected provider",
+    },
+    "openai_api_base": {
+        "value": "https://api.openai.com/v1",
+        "value_type": "string",
+        "description": "OpenAI-compatible API base URL used by provider adapters",
+    },
 }

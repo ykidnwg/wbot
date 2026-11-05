@@ -27,8 +27,8 @@ describe("DashboardPage", () => {
 
     render(<DashboardPage />);
 
-    expect(await screen.findAllByText("Belum dikonfigurasi")).toHaveLength(3);
-    expect(screen.getByText("Estimasi biaya AI")).toBeInTheDocument();
-    expect(screen.getByText("Belum tersedia")).toBeInTheDocument();
+    expect(await screen.findAllByText("not configured")).toHaveLength(3);
+    expect(screen.getByText("AI cost")).toBeInTheDocument();
+    expect(screen.getByText("Not tracked")).toBeInTheDocument();
   });
 });

@@ -16,8 +16,8 @@ describe("LoginForm", () => {
 
     render(<LoginForm />);
     await user.type(screen.getByLabelText("Email"), "owner@example.com");
-    await user.type(screen.getByLabelText("Kata sandi"), "safe-password");
-    await user.click(screen.getByRole("button", { name: "Masuk" }));
+    await user.type(screen.getByLabelText("Password"), "safe-password");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/backend/auth/login",
@@ -31,9 +31,9 @@ describe("LoginForm", () => {
 
     render(<LoginForm />);
     await user.type(screen.getByLabelText("Email"), "owner@example.com");
-    await user.type(screen.getByLabelText("Kata sandi"), "incorrect");
-    await user.click(screen.getByRole("button", { name: "Masuk" }));
+    await user.type(screen.getByLabelText("Password"), "incorrect");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Email atau kata sandi tidak valid");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Email or password is invalid");
   });
 });

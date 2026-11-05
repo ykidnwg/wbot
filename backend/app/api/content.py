@@ -6,22 +6,26 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.api.dependencies import CurrentUser, DbSession
+from app.providers.caption import ProviderError
 from app.schemas.content import (
     CaptionGenerationRequest,
     ContentApprovalRequest,
     ContentCaptionUpdateRequest,
     ContentItemResponse,
     ContentListResponse,
+    ContentMediaAttachRequest,
     ContentVersionResponse,
 )
 from app.services.audit_log import write_audit_log_from_request
 from app.services.content import (
+    attach_media,
     decide_content,
     generate_caption_draft,
     list_content,
     list_content_versions,
     update_content_caption,
 )
+from app.services.providers import build_caption_provider
 
 router = APIRouter(prefix="/content", tags=["content"])
 
@@ -47,7 +51,10 @@ async def post_generate_caption(
     request: Request,
 ) -> ContentItemResponse:
     try:
-        item = await generate_caption_draft(db_session, current_user.id, body)
+        provider = await build_caption_provider(db_session)
+        item = await generate_caption_draft(db_session, current_user.id, body, provider)
+    except ProviderError as exc:
+        raise _provider_http_error(exc) from exc
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     await write_audit_log_from_request(
@@ -85,6 +92,36 @@ async def put_content_caption(
         entity_type="content_item",
         entity_id=str(item.id),
         details={"version_no": item.version_no, "approval_required": True},
+        actor_id=current_user.id,
+        actor_email=current_user.email,
+    )
+    await db_session.commit()
+    return ContentItemResponse.model_validate(item)
+
+
+@router.put("/{content_id}/media", response_model=ContentItemResponse)
+async def put_content_media(
+    content_id: UUID,
+    body: ContentMediaAttachRequest,
+    current_user: CurrentUser,
+    db_session: DbSession,
+    request: Request,
+) -> ContentItemResponse:
+    try:
+        item = await attach_media(
+            db_session, current_user.id, content_id, body.media_asset_id
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if item is None:
+        raise HTTPException(status_code=404, detail="Content item not found")
+    await write_audit_log_from_request(
+        db_session,
+        request,
+        action="content_media_attached",
+        entity_type="content_item",
+        entity_id=str(item.id),
+        details={"media_asset_id": str(item.media_asset_id) if item.media_asset_id else None},
         actor_id=current_user.id,
         actor_email=current_user.email,
     )
@@ -130,3 +167,15 @@ async def post_content_approval(
     )
     await db_session.commit()
     return ContentItemResponse.model_validate(item)
+
+
+def _provider_http_error(exc: ProviderError) -> HTTPException:
+    if exc.safe_message == "NEEDS_CREDENTIALS" or exc.category == "auth":
+        return HTTPException(status_code=503, detail="NEEDS_CREDENTIALS")
+    if exc.category == "rate_limit":
+        return HTTPException(status_code=429, detail=exc.safe_message)
+    if exc.category == "validation":
+        return HTTPException(status_code=422, detail=exc.safe_message)
+    if exc.category == "network":
+        return HTTPException(status_code=502, detail=exc.safe_message)
+    return HTTPException(status_code=502, detail=exc.safe_message)

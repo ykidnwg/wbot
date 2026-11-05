@@ -1,25 +1,32 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
 import { WorkspaceShell } from "@/components/workspace-shell";
+import { Card, EmptyState, Notice, PageBody, PageHeader, SectionTitle, StatusBadge } from "@/components/page";
 import {
+  attachContentMedia,
   decideContent,
   generateCaptionDraft,
   getContent,
+  getMedia,
   getPersonas,
   updateContentCaption,
   type ContentItem,
+  type MediaAsset,
   type Persona,
 } from "@/lib/api";
 
 export default function ContentPage() {
   const [personas, setPersonas] = useState<Persona[]>([]);
+  const [media, setMedia] = useState<MediaAsset[]>([]);
   const [items, setItems] = useState<ContentItem[]>([]);
   const [personaId, setPersonaId] = useState("");
   const [topic, setTopic] = useState("");
-  const [platform, setPlatform] = useState("unassigned");
+  const [platform, setPlatform] = useState("facebook");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,21 +34,26 @@ export default function ContentPage() {
   const [captionDraft, setCaptionDraft] = useState("");
 
   async function reload(signal?: AbortSignal) {
-    const [personaRows, contentRows] = await Promise.all([getPersonas(signal), getContent(signal)]);
+    const [personaRows, contentRows, mediaRows] = await Promise.all([
+      getPersonas(signal),
+      getContent(signal),
+      getMedia(signal),
+    ]);
     setPersonas(personaRows);
     setItems(contentRows);
+    setMedia(mediaRows);
   }
 
   useEffect(() => {
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      reload(controller.signal)
+      void reload(controller.signal)
         .catch((requestError: unknown) => {
           if (requestError instanceof Error && requestError.message === "unauthorized") {
             window.location.assign("/login");
             return;
           }
-          setError("Data content factory tidak dapat dimuat.");
+          setError("The content studio could not be loaded.");
         })
         .finally(() => setLoading(false));
     }, 0);
@@ -60,7 +72,13 @@ export default function ContentPage() {
       setItems((current) => [item, ...current]);
       setTopic("");
     } catch (requestError: unknown) {
-      setError(requestError instanceof Error ? requestError.message : "Caption draft gagal dibuat.");
+      setError(
+        requestError instanceof Error && requestError.message === "NEEDS_CREDENTIALS"
+          ? "The caption provider needs an API key on the server."
+          : requestError instanceof Error
+            ? requestError.message
+            : "The caption draft could not be created.",
+      );
     } finally {
       setBusy(false);
     }
@@ -73,7 +91,7 @@ export default function ContentPage() {
       const updated = await decideContent(item.id, decision);
       setItems((current) => current.map((row) => (row.id === updated.id ? updated : row)));
     } catch {
-      setError("Keputusan approval gagal disimpan.");
+      setError("The approval decision could not be saved.");
     } finally {
       setBusy(false);
     }
@@ -88,146 +106,153 @@ export default function ContentPage() {
       setEditingId(null);
       setCaptionDraft("");
     } catch (requestError: unknown) {
-      setError(requestError instanceof Error ? requestError.message : "Caption tidak dapat disimpan.");
+      setError(requestError instanceof Error ? requestError.message : "The caption could not be saved.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function attachMedia(item: ContentItem, mediaAssetId: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await attachContentMedia(item.id, mediaAssetId || null);
+      setItems((current) => current.map((row) => (row.id === updated.id ? updated : row)));
+    } catch (requestError: unknown) {
+      setError(requestError instanceof Error ? requestError.message : "The media could not be attached.");
     } finally {
       setBusy(false);
     }
   }
 
   const approvedPersonas = personas.filter((persona) => persona.status === "approved");
+  const mediaById = new Map(media.map((asset) => [asset.id, asset]));
 
   return (
     <WorkspaceShell>
-      <main className="mx-auto max-w-5xl px-5 py-8 md:px-8">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Provider MOCK</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight">Content factory</h1>
-            <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">
-              Caption dibuat dengan template lokal deterministik, bukan AI eksternal. Mengubah caption
-              selalu membuat versi baru dan membutuhkan approval ulang. Image generation dan publikasi belum dikonfigurasi.
-            </p>
-          </div>
-        </div>
+      <PageBody>
+        <PageHeader
+          eyebrow="Content studio"
+          title="Draft with speed. Publish with evidence."
+          description="Captions are versioned and must be approved before scheduling. Editing a caption creates a new version and returns it to draft, so an old approval can never leak into a new post."
+          action={<span className="badge badge-neutral">Immutable versions</span>}
+        />
 
-        <section className="mt-7 rounded-xl border border-[var(--border)] bg-white p-5">
-          <h2 className="font-semibold">Buat draft caption</h2>
-          <form onSubmit={createDraft} className="mt-4 grid gap-4 md:grid-cols-2">
-            <label className="grid gap-1.5 text-sm font-medium">
-              Persona approved
-              <select
-                required
-                value={personaId}
-                onChange={(event) => setPersonaId(event.target.value)}
-                className="rounded-md border border-[var(--border)] px-3 py-2"
-              >
-                <option value="">Pilih persona</option>
-                {approvedPersonas.map((persona) => (
-                  <option key={persona.id} value={persona.id}>{persona.name}</option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-1.5 text-sm font-medium">
-              Platform tujuan
-              <select
-                value={platform}
-                onChange={(event) => setPlatform(event.target.value)}
-                className="rounded-md border border-[var(--border)] px-3 py-2"
-              >
-                <option value="unassigned">Belum ditentukan</option>
-                <option value="facebook">Facebook</option>
-                <option value="instagram">Instagram</option>
-                <option value="threads">Threads</option>
-                <option value="x">X</option>
-              </select>
-            </label>
-            <label className="grid gap-1.5 text-sm font-medium md:col-span-2">
-              Topik konten
-              <input
-                required
-                minLength={3}
-                maxLength={500}
-                value={topic}
-                onChange={(event) => setTopic(event.target.value)}
-                placeholder="Contoh: ide outfit kasual untuk akhir pekan"
-                className="rounded-md border border-[var(--border)] px-3 py-2"
-              />
-            </label>
-            <div className="md:col-span-2">
-              <button
-                disabled={busy || approvedPersonas.length === 0}
-                className="rounded-md bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {busy ? "Memproses…" : "Buat draft MOCK"}
+        <div className="mt-8 grid gap-6 lg:grid-cols-[0.8fr_1.5fr]">
+          <Card>
+            <SectionTitle title="New caption draft" hint="The active provider is shown on every generated item." />
+            <form onSubmit={createDraft} className="grid gap-4">
+              <label className="label">
+                Approved persona
+                <select required className="field" value={personaId} onChange={(event) => setPersonaId(event.target.value)}>
+                  <option value="">Select persona</option>
+                  {approvedPersonas.map((persona) => (
+                    <option key={persona.id} value={persona.id}>{persona.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="label">
+                Platform
+                <select className="field" value={platform} onChange={(event) => setPlatform(event.target.value)}>
+                  <option value="facebook">Facebook</option>
+                  <option value="instagram">Instagram</option>
+                  <option value="threads">Threads</option>
+                  <option value="x">X</option>
+                  <option value="unassigned">Unassigned</option>
+                </select>
+              </label>
+              <label className="label">
+                Topic
+                <input required minLength={3} maxLength={500} className="field" value={topic} onChange={(event) => setTopic(event.target.value)} placeholder="A quiet morning routine for a slow weekend" />
+              </label>
+              <button disabled={busy || !approvedPersonas.length} className="btn btn-accent w-full">
+                {busy ? "Drafting…" : "Generate caption"}
               </button>
-              {approvedPersonas.length === 0 && (
-                <p className="mt-2 text-sm text-[var(--muted)]">Setujui persona dewasa terlebih dahulu.</p>
-              )}
-            </div>
-          </form>
-          {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
-        </section>
+              {!approvedPersonas.length ? <p className="text-xs text-[var(--muted)]">Approve an adult persona before generating content.</p> : null}
+              {error ? <Notice>{error}</Notice> : null}
+            </form>
+          </Card>
 
-        <section className="mt-7">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Draft dan riwayat</h2>
-            <span className="text-sm text-[var(--muted)]">{items.length} item</span>
-          </div>
-          {loading ? (
-            <p className="mt-4 rounded-lg border border-[var(--border)] bg-white p-5 text-sm text-[var(--muted)]">Memuat konten…</p>
-          ) : items.length === 0 ? (
-            <p className="mt-4 rounded-lg border border-dashed border-[var(--border)] bg-white p-7 text-center text-sm text-[var(--muted)]">Belum ada draft konten.</p>
-          ) : (
-            <ul className="mt-4 space-y-3">
-              {items.map((item) => (
-                <li key={item.id} className="rounded-xl border border-[var(--border)] bg-white p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <p className="font-semibold">{item.topic}</p>
-                      <p className="mt-1 text-xs text-[var(--muted)]">{item.platform} · {item.provider} · versi {item.version_no}</p>
-                    </div>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium">{item.status}</span>
-                  </div>
-                  {editingId === item.id ? (
-                    <div className="mt-4 grid gap-2">
-                      <label className="text-sm font-medium" htmlFor={`caption-${item.id}`}>Caption versi baru</label>
-                      <textarea
-                        id={`caption-${item.id}`}
-                        value={captionDraft}
-                        onChange={(event) => setCaptionDraft(event.target.value)}
-                        maxLength={10000}
-                        rows={5}
-                        className="rounded-md border border-[var(--border)] px-3 py-2 text-sm"
-                      />
-                      <div className="flex gap-2">
-                        <button disabled={busy || !captionDraft.trim()} onClick={() => void saveCaption(item)} className="rounded-md bg-blue-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-50">Simpan versi baru</button>
-                        <button disabled={busy} onClick={() => setEditingId(null)} className="rounded-md border border-[var(--border)] px-3 py-2 text-sm font-medium">Batal</button>
+          <section className="card p-5 md:p-6">
+            <SectionTitle title="Drafts and history" hint={`${items.length} item${items.length === 1 ? "" : "s"} in this workspace`} />
+            {loading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map((key) => <div key={key} className="h-24 animate-pulse rounded-[var(--radius-md)] bg-[var(--surface-muted)]" />)}
+              </div>
+            ) : items.length === 0 ? (
+              <EmptyState title="No drafts yet" body="Generate a caption to start the approval workflow. Media can be attached before scheduling." />
+            ) : (
+              <ul className="divide-line">
+                {items.map((item) => {
+                  const asset = item.media_asset_id ? mediaById.get(item.media_asset_id) : null;
+                  return (
+                    <li key={item.id} className="py-5 first:pt-0 last:pb-0">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold">{item.topic}</p>
+                          <p className="mt-1 text-[0.68rem] text-[var(--muted)]">
+                            {item.platform} · {item.provider} · version {item.version_no}
+                          </p>
+                        </div>
+                        <StatusBadge status={item.status} />
                       </div>
-                    </div>
-                  ) : (
-                    <p className="mt-4 whitespace-pre-wrap text-sm leading-6">{item.caption}</p>
-                  )}
-                  {editingId !== item.id && (item.status === "draft" || item.status === "approved" || item.status === "rejected") && (
-                    <button
-                      disabled={busy}
-                      onClick={() => { setEditingId(item.id); setCaptionDraft(item.caption); }}
-                      className="mt-4 rounded-md border border-[var(--border)] px-3 py-2 text-sm font-medium disabled:opacity-50"
-                    >
-                      Ubah caption
-                    </button>
-                  )}
-                  {item.status === "draft" && (
-                    <div className="mt-4 flex gap-2">
-                      <button disabled={busy} onClick={() => void review(item, "approved")} className="rounded-md bg-emerald-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-50">Setujui draft</button>
-                      <button disabled={busy} onClick={() => void review(item, "rejected")} className="rounded-md border border-[var(--border)] px-3 py-2 text-sm font-medium disabled:opacity-50">Tolak</button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </main>
+
+                      {asset ? (
+                        <div className="mt-3 flex items-center gap-3 rounded-[var(--radius-sm)] bg-[var(--surface-muted)] p-2">
+                          <Image src={`/api/backend/media/${asset.id}/preview`} alt={asset.prompt} width={64} height={64} unoptimized className="h-14 w-14 rounded object-cover" />
+                          <p className="line-clamp-2 text-xs text-[var(--muted)]">{asset.prompt}</p>
+                        </div>
+                      ) : null}
+
+                      {editingId === item.id ? (
+                        <div className="mt-4 grid gap-2">
+                          <label className="label" htmlFor={`caption-${item.id}`}>New caption version</label>
+                          <textarea id={`caption-${item.id}`} value={captionDraft} onChange={(event) => setCaptionDraft(event.target.value)} maxLength={10000} rows={5} className="field" />
+                          <div className="flex gap-2">
+                            <button disabled={busy || !captionDraft.trim()} onClick={() => void saveCaption(item)} className="btn btn-primary">Save new version</button>
+                            <button disabled={busy} onClick={() => setEditingId(null)} className="btn btn-secondary">Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--ink-soft)]">{item.caption}</p>
+                      )}
+
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                        {editingId !== item.id && ["draft", "approved", "rejected"].includes(item.status) ? (
+                          <button disabled={busy} onClick={() => { setEditingId(item.id); setCaptionDraft(item.caption); }} className="btn btn-secondary">Edit caption</button>
+                        ) : null}
+                        {item.status === "draft" ? (
+                          <>
+                            <button disabled={busy} onClick={() => void review(item, "approved")} className="btn btn-primary">Approve</button>
+                            <button disabled={busy} onClick={() => void review(item, "rejected")} className="btn btn-secondary">Reject</button>
+                          </>
+                        ) : null}
+                        {["draft", "approved", "rejected"].includes(item.status) ? (
+                          <select
+                            aria-label="Attach media"
+                            disabled={busy}
+                            value={item.media_asset_id ?? ""}
+                            onChange={(event) => void attachMedia(item, event.target.value)}
+                            className="rounded-full border border-[var(--line-strong)] bg-transparent px-3 py-2 text-xs font-semibold text-[var(--ink-soft)]"
+                          >
+                            <option value="">No media</option>
+                            {media.map((option) => (
+                              <option key={option.id} value={option.id}>{option.prompt.slice(0, 48)}</option>
+                            ))}
+                          </select>
+                        ) : null}
+                        {item.status === "approved" ? (
+                          <Link href="/calendar" className="btn btn-accent">Schedule</Link>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        </div>
+      </PageBody>
     </WorkspaceShell>
   );
 }

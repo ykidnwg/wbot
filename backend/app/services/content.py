@@ -5,9 +5,15 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.content import ApprovalEvent, ContentItem, ContentVersion, GenerationJob
+from app.models.content import (
+    ApprovalEvent,
+    ContentItem,
+    ContentVersion,
+    GenerationJob,
+    MediaAsset,
+)
 from app.models.persona import Persona
-from app.providers.caption import CaptionProvider, MockCaptionProvider
+from app.providers.caption import CaptionProvider, CaptionRequest, MockCaptionProvider
 from app.schemas.content import CaptionGenerationRequest
 
 
@@ -39,8 +45,18 @@ async def generate_caption_draft(
         raise ValueError("Only an owned, approved persona can generate a content draft")
 
     caption_provider = provider or MockCaptionProvider()
-    caption = caption_provider.generate(
-        persona_name=persona.name, language=persona.language, topic=payload.topic
+    caption = await caption_provider.generate(
+        CaptionRequest(
+            persona_name=persona.name,
+            language=persona.language,
+            topic=payload.topic,
+            platform=payload.platform,
+            personality=persona.personality,
+            target_audience=persona.target_audience,
+            identity_description=persona.identity_description,
+            preferences=persona.caption_preferences,
+            aspect_ratio=payload.aspect_ratio,
+        )
     )
     job = GenerationJob(
         owner_id=owner_id,
@@ -73,6 +89,7 @@ async def generate_caption_draft(
             content_item_id=item.id,
             version_no=1,
             caption=caption,
+            media_asset_id=None,
             provider=item.provider,
         )
     )
@@ -145,6 +162,7 @@ async def update_content_caption(
             content_item_id=item.id,
             version_no=item.version_no,
             caption=caption,
+            media_asset_id=item.media_asset_id,
             provider=item.provider,
         )
     )
@@ -162,3 +180,43 @@ async def list_content_versions(
         .order_by(ContentVersion.version_no.desc())
     )
     return list(result.all())
+
+async def attach_media(
+    db: AsyncSession, owner_id: UUID, content_id: UUID, media_asset_id: UUID | None
+) -> ContentItem | None:
+    item = await db.scalar(
+        select(ContentItem)
+        .where(ContentItem.id == content_id, ContentItem.owner_id == owner_id)
+        .with_for_update()
+    )
+    if item is None:
+        return None
+    if item.status not in {"draft", "approved", "rejected"}:
+        raise ValueError("Media can only be changed before scheduling")
+    if media_asset_id is not None:
+        asset = await db.scalar(
+            select(MediaAsset).where(
+                MediaAsset.id == media_asset_id,
+                MediaAsset.owner_id == owner_id,
+            )
+        )
+        if asset is None:
+            raise ValueError("Media asset is not an owned, ready image")
+    if item.media_asset_id == media_asset_id:
+        return item
+    item.version_no += 1
+    item.media_asset_id = media_asset_id
+    item.status = "draft"
+    db.add(
+        ContentVersion(
+            owner_id=owner_id,
+            content_item_id=item.id,
+            version_no=item.version_no,
+            caption=item.caption,
+            media_asset_id=item.media_asset_id,
+            provider=item.provider,
+        )
+    )
+    await db.flush()
+    await db.refresh(item)
+    return item

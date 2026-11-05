@@ -42,6 +42,17 @@ def test_initial_migration_is_repeatable() -> None:
             "social_connections",
             "social_targets",
             "persona_assignments",
+            "schedules",
+            "browser_accounts",
+            "browser_profiles",
+            "browser_jobs",
+            "browser_events",
+            "browser_workers",
+            "publishing_jobs",
+            "publishing_attempts",
+            "campaigns",
+            "campaign_links",
+            "campaign_clicks",
         }
         assert expected.issubset(tables), f"Missing tables: {expected - tables}"
     finally:

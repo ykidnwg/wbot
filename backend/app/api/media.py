@@ -9,9 +9,10 @@ from fastapi.responses import Response
 from sqlalchemy import func, select
 
 from app.api.dependencies import CurrentUser, DbSession
+from app.core.config import get_settings
 from app.models.content import MediaAsset
 from app.models.persona import Persona
-from app.providers.image import MockImageProvider
+from app.providers.caption import ProviderError
 from app.schemas.media import (
     ImageGenerationRequest,
     MediaAssetListResponse,
@@ -19,16 +20,23 @@ from app.schemas.media import (
     ProviderStatusResponse,
 )
 from app.services.media import ObjectStorage, create_media_asset, get_media_asset
+from app.services.providers import build_image_provider, get_provider_statuses
 
 router = APIRouter(prefix="/media", tags=["media"])
-storage = ObjectStorage(Path("/tmp/ai-social-media"))
+storage = ObjectStorage(Path(get_settings().media_storage_root))
 
 
 @router.get("/provider", response_model=ProviderStatusResponse)
-async def get_image_provider_status(_current_user: CurrentUser) -> ProviderStatusResponse:
-    provider = MockImageProvider()
+async def get_image_provider_status(
+    _current_user: CurrentUser, db_session: DbSession
+) -> ProviderStatusResponse:
+    statuses = await get_provider_statuses(db_session)
+    image = next(item for item in statuses if item.kind == "image")
     return ProviderStatusResponse(
-        provider=provider.name, model=provider.model, mode="mock", health=provider.get_health()
+        provider="openai" if image.mode == "live" else "mock",
+        model=image.model,
+        mode=image.mode,
+        health=image.status,
     )
 
 
@@ -47,16 +55,27 @@ async def generate_image(
         raise HTTPException(
             status_code=409, detail="Only an owned, approved persona can generate an image"
         )
-    provider = MockImageProvider()
+    provider = await build_image_provider(db_session)
     try:
+        generated = provider.generate_image(
+            prompt=body.prompt, aspect_ratio=body.aspect_ratio
+        )
         asset = await create_media_asset(
             db_session,
             storage,
             current_user.id,
             persona.id,
             body.prompt,
-            provider.generate_image(prompt=body.prompt),
+            generated,
         )
+    except ProviderError as exc:
+        if exc.safe_message == "NEEDS_CREDENTIALS" or exc.category == "auth":
+            raise HTTPException(status_code=503, detail="NEEDS_CREDENTIALS") from exc
+        if exc.category == "rate_limit":
+            raise HTTPException(status_code=429, detail=exc.safe_message) from exc
+        if exc.category == "validation":
+            raise HTTPException(status_code=422, detail=exc.safe_message) from exc
+        raise HTTPException(status_code=502, detail=exc.safe_message) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     await db_session.commit()

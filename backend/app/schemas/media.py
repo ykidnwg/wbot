@@ -9,6 +9,9 @@ from pydantic import BaseModel, ConfigDict, Field
 class ImageGenerationRequest(BaseModel):
     persona_id: UUID
     prompt: str = Field(min_length=3, max_length=4000)
+    aspect_ratio: str = Field(
+        default="square", pattern="^(square|portrait|vertical|landscape)$"
+    )
 
 
 class MediaAssetResponse(BaseModel):

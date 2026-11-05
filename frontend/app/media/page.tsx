@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 
 import { WorkspaceShell } from "@/components/workspace-shell";
+import { Card, EmptyState, Notice, PageBody, PageHeader, SectionTitle, StatusBadge } from "@/components/page";
 import { generateImage, getMedia, getPersonas, type MediaAsset, type Persona } from "@/lib/api";
 
 export default function MediaPage() {
@@ -11,6 +13,7 @@ export default function MediaPage() {
   const [assets, setAssets] = useState<MediaAsset[]>([]);
   const [personaId, setPersonaId] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [aspectRatio, setAspectRatio] = useState("square");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,21 +29,31 @@ export default function MediaPage() {
           window.location.assign("/login");
           return;
         }
-        setError("Media library tidak dapat dimuat.");
+        setError("The media library could not be loaded.");
       })
       .finally(() => setLoading(false));
   }, []);
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      const asset = await generateImage({ persona_id: personaId, prompt });
+      const asset = await generateImage({
+        persona_id: personaId,
+        prompt,
+        aspect_ratio: aspectRatio,
+      });
       setAssets((current) => [asset, ...current]);
       setPrompt("");
     } catch (requestError: unknown) {
-      setError(requestError instanceof Error ? requestError.message : "Image generation gagal.");
+      setError(
+        requestError instanceof Error && requestError.message === "NEEDS_CREDENTIALS"
+          ? "The selected image provider needs an API key on the server."
+          : requestError instanceof Error
+            ? requestError.message
+            : "Image generation failed.",
+      );
     } finally {
       setBusy(false);
     }
@@ -48,55 +61,83 @@ export default function MediaPage() {
 
   return (
     <WorkspaceShell>
-      <main className="mx-auto max-w-5xl px-5 py-8 md:px-8">
-        <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Provider MOCK</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight">Image generation & media library</h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">
-          Output lokal deterministik untuk pengujian workflow. Belum ada provider berbayar atau konsistensi wajah.
-        </p>
-        <form onSubmit={submit} className="mt-7 grid gap-4 rounded-xl border border-[var(--border)] bg-white p-5">
-          <label className="grid gap-1.5 text-sm font-medium">
-            Persona approved
-            <select required value={personaId} onChange={(event) => setPersonaId(event.target.value)} className="rounded-md border border-[var(--border)] px-3 py-2">
-              <option value="">Pilih persona</option>
-              {personas.map((persona) => <option key={persona.id} value={persona.id}>{persona.name}</option>)}
-            </select>
-          </label>
-          <label className="grid gap-1.5 text-sm font-medium">
-            Prompt adegan
-            <textarea required minLength={3} value={prompt} onChange={(event) => setPrompt(event.target.value)} className="min-h-24 rounded-md border border-[var(--border)] px-3 py-2" />
-          </label>
-          <button disabled={busy || personas.length === 0} className="w-fit rounded-md bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-            {busy ? "Memproses..." : "Buat gambar MOCK"}
-          </button>
-          {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-        </form>
-        <section className="mt-7">
-          <h2 className="font-semibold">Asset tersimpan</h2>
-          {loading ? <p className="mt-4 text-sm text-[var(--muted)]">Memuat media...</p> : assets.length === 0 ? (
-            <p className="mt-4 rounded-lg border border-dashed border-[var(--border)] p-7 text-center text-sm text-[var(--muted)]">Belum ada asset.</p>
-          ) : (
-            <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {assets.map((asset) => (
-                <li key={asset.id} className="overflow-hidden rounded-xl border border-[var(--border)] bg-white">
-                  <Image
-                    src={`/api/backend/media/${asset.id}/preview`}
-                    alt={asset.prompt}
-                    width={1}
-                    height={1}
-                    unoptimized
-                    className="aspect-square w-full object-cover"
-                  />
-                  <div className="p-4 text-sm">
-                    <p className="font-medium">{asset.prompt}</p>
-                    <p className="mt-1 text-xs text-[var(--muted)]">{asset.provider}/{asset.model} · {asset.width}x{asset.height}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </main>
+      <PageBody>
+        <PageHeader
+          eyebrow="Media library"
+          title="Images that stay inside the workspace."
+          description="Generated images are validated, checksummed, and stored owner-scoped. The mock provider produces a local image; a live OpenAI-compatible provider is used only when configured with a key."
+          action={<span className="badge badge-accent">Validated storage</span>}
+        />
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-[0.8fr_1.4fr]">
+          <Card>
+            <SectionTitle title="Generate an image" hint="Portrait and landscape sizes map to documented provider sizes." />
+            <form onSubmit={submit} className="grid gap-4">
+              <label className="label">
+                Approved persona
+                <select required className="field" value={personaId} onChange={(event) => setPersonaId(event.target.value)}>
+                  <option value="">Select persona</option>
+                  {personas.map((persona) => <option key={persona.id} value={persona.id}>{persona.name}</option>)}
+                </select>
+              </label>
+              <label className="label">
+                Scene prompt
+                <textarea required minLength={3} maxLength={4000} className="field min-h-28" value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="A calm editorial portrait in warm morning light" />
+              </label>
+              <label className="label">
+                Aspect ratio
+                <select className="field" value={aspectRatio} onChange={(event) => setAspectRatio(event.target.value)}>
+                  <option value="square">Square · 1:1</option>
+                  <option value="portrait">Portrait · 2:3</option>
+                  <option value="vertical">Vertical · 9:16</option>
+                  <option value="landscape">Landscape · 3:2</option>
+                </select>
+              </label>
+              <button disabled={busy || !personas.length} className="btn btn-accent w-full">
+                {busy ? "Generating…" : "Generate image"}
+              </button>
+              {!personas.length ? <p className="text-xs text-[var(--muted)]">Approve a persona first.</p> : null}
+              {error ? <Notice>{error}</Notice> : null}
+            </form>
+          </Card>
+
+          <section className="card p-5 md:p-6">
+            <SectionTitle
+              title="Stored assets"
+              hint={`${assets.length} image${assets.length === 1 ? "" : "s"} · previews are served from the backend`}
+            />
+            {loading ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[1, 2].map((key) => <div key={key} className="h-48 animate-pulse rounded-[var(--radius-md)] bg-[var(--surface-muted)]" />)}
+              </div>
+            ) : assets.length === 0 ? (
+              <EmptyState title="No images yet" body="Generate an image to populate the owner-scoped media library." />
+            ) : (
+              <ul className="grid gap-4 sm:grid-cols-2">
+                {assets.map((asset) => (
+                  <li key={asset.id} className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--line)] bg-[var(--surface-muted)]">
+                    <Image
+                      src={`/api/backend/media/${asset.id}/preview`}
+                      alt={asset.prompt}
+                      width={asset.width}
+                      height={asset.height}
+                      unoptimized
+                      className="aspect-[4/3] w-full object-cover"
+                    />
+                    <div className="p-4">
+                      <p className="line-clamp-2 text-sm font-medium leading-5">{asset.prompt}</p>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <p className="text-[0.68rem] text-[var(--muted)]">{asset.width} × {asset.height} · {asset.mime_type}</p>
+                        <StatusBadge status={asset.provider} />
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      </PageBody>
     </WorkspaceShell>
   );
 }

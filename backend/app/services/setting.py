@@ -114,3 +114,11 @@ def _validate_value_type(key: str, value: str, value_type: str) -> None:
             ZoneInfo(value)
         except (ValueError, ZoneInfoNotFoundError) as exc:
             raise ValueError("Timezone must be a valid IANA timezone") from exc
+    elif key in {"caption_provider", "image_provider"}:
+        if value not in {"mock", "openai"}:
+            raise ValueError("Provider must be 'mock' or 'openai'")
+    elif key == "openai_api_base":
+        if not value.startswith("https://") or len(value) > 500:
+            raise ValueError("Provider base URL must be an HTTPS URL")
+    elif key in {"caption_model", "image_model"} and (not value.strip() or len(value) > 120):
+        raise ValueError("Model identifier must be 1-120 characters")

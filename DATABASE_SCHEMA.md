@@ -64,3 +64,49 @@ Migration `20261101_0006` adds `media_assets`. The current mock image flow store
 Migration `20261101_0007` adds `oauth_states`, `social_connections`, `social_targets`, and
 `persona_assignments`. Social tokens are encrypted envelopes; no token column is exposed by
 API schemas. Disconnecting marks a connection revoked and cascades managed targets safely.
+
+## Implemented scheduling, publishing, and campaign tables
+
+Migration `20261102_0008` adds the following.
+
+### `content_items.media_asset_id`
+
+Nullable foreign key to `media_assets(id)` with `ON DELETE SET NULL`; indexed. A content item can attach exactly one validated image. Attaching or removing media returns an approved item to `draft` so it must be approved again before scheduling.
+
+### `content_versions.media_asset_id`
+
+Nullable foreign key to `media_assets(id)` with `ON DELETE SET NULL`; indexed. Each immutable version snapshots the attached media alongside the caption, so an approval event refers to the exact text and image reviewed.
+
+### `schedules`
+
+One schedule per content item and social target. Stores `scheduled_for` in UTC, the IANA `timezone` used to interpret a naive request time, `status` (`scheduled`, `cancelled`, `publishing`, `published`, `failed`, `uncertain`), and an owner-scoped unique `idempotency_key`. Indexed by owner, content, target, time, and `(status, scheduled_for)` for due dispatch.
+
+### `publishing_jobs`
+
+Durable queue row for a due schedule or manual job. Stores platform, status (`queued`, `running`, `succeeded`, `failed`, `retry_wait`, `cancelled`, `needs_credentials`, `needs_approval`, `uncertain`), attempt count, external post id/URL, error category/summary, next retry time, and owner-scoped unique idempotency key. Indexed by owner, schedule, content, target, and `(status, next_retry_at)`.
+
+### `publishing_attempts`
+
+Append-only attempt history. Each row stores attempt number, outcome (`succeeded`, `failed`, `rate_limited`, `uncertain`), HTTP status, safe error category/summary, external post id, and timestamps. Unique on `(publishing_job_id, attempt_no)`.
+
+### `campaigns`
+
+Owner-scoped campaign with optional approved persona, name, platform, primary destination, status (`draft`, `active`, `paused`, `ended`, `archived`), and optional start/end times.
+
+### `campaign_links`
+
+Owner-scoped affiliate URL plus a globally unique opaque tracking id, human label, and optional UTM fields. Global uniqueness is required because the public redirect has no owner context. No destination is fetched by the server.
+
+### `campaign_clicks`
+
+Append-only first-party click record with owner id, campaign link id, timestamp, and optional normalized referrer host. Indexed by owner, link, time, and `(link, clicked_at)`.
+
+## State-transition rules
+
+- Content must be `approved` before a schedule is created.
+- Creating a schedule sets content to `scheduled`.
+- Cancelling a `scheduled` schedule returns content to `approved` unless another active schedule exists.
+- A due schedule becomes `publishing`; a job is created exactly once through its idempotency key.
+- Job success sets job `succeeded`, schedule `published`, and content `published` only after a provider returns an external post id.
+- Auth/credential failures set job `needs_credentials` and return content to `approved`.
+- HTTP 5xx or a timeout during a POST is `uncertain`; it is not retried automatically to avoid duplicate posts. A job left `running` by a crashed worker is recovered as `uncertain` after 15 minutes, requiring human verification instead of a blind retry.

@@ -1,18 +1,27 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { getDashboardSummary, type DashboardSummary } from "@/lib/api";
 import { WorkspaceShell } from "@/components/workspace-shell";
+import { PageBody, PageHeader, Notice, SectionTitle, StatusBadge, Stat } from "@/components/page";
+import { ArrowUpRightIcon, CalendarIcon, DocumentIcon, SendIcon } from "@/components/icons";
+import { getDashboardSummary, type DashboardSummary } from "@/lib/api";
 
-const metricLabels: Array<[keyof Omit<DashboardSummary, "services" | "estimated_ai_cost">, string]> = [
-  ["connected_accounts", "Akun terhubung"],
-  ["active_personas", "Persona aktif"],
-  ["generated_images", "Gambar berhasil dibuat"],
-  ["pending_approval", "Menunggu persetujuan"],
-  ["scheduled_posts", "Posting terjadwal"],
-  ["published_posts", "Posting sukses"],
-  ["failed_posts", "Posting gagal"],
+const metrics: Array<[keyof Omit<DashboardSummary, "services" | "estimated_ai_cost">, string, string]> = [
+  ["connected_accounts", "Connected accounts", "Facebook Pages linked"],
+  ["active_personas", "Approved personas", "Ready for content"],
+  ["generated_images", "Media assets", "Stored in your library"],
+  ["pending_approval", "Awaiting approval", "Drafts that need review"],
+  ["scheduled_posts", "Scheduled", "Waiting for the worker"],
+  ["published_posts", "Published", "Confirmed by the platform"],
+  ["failed_posts", "Needs attention", "Failed or uncertain jobs"],
+];
+
+const quickActions = [
+  { href: "/content", label: "Create a draft", detail: "Generate and approve a caption", Icon: DocumentIcon },
+  { href: "/calendar", label: "Plan the week", detail: "Schedule approved content", Icon: CalendarIcon },
+  { href: "/publishing", label: "Watch the queue", detail: "Inspect jobs and retries", Icon: SendIcon },
 ];
 
 export default function DashboardPage() {
@@ -28,53 +37,84 @@ export default function DashboardPage() {
           window.location.assign("/login");
           return;
         }
-        setError("Dashboard tidak dapat dimuat. Periksa koneksi backend lalu coba lagi.");
+        setError("The overview could not be loaded. Check the backend connection and try again.");
       });
     return () => controller.abort();
   }, []);
 
   return (
-    <WorkspaceShell><main className="min-h-screen p-5 md:p-10">
-      <header className="mx-auto flex max-w-6xl flex-col gap-4 border-b border-[var(--border)] pb-6 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-sm font-semibold tracking-wide text-blue-700">WORKSPACE</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="mt-2 text-sm text-[var(--muted)]">Ringkasan operasional yang hanya menampilkan data tersedia.</p>
-        </div>
-        <span className="w-fit rounded-full bg-slate-200 px-3 py-1 text-sm font-medium text-slate-700">Fondasi M0</span>
-      </header>
+    <WorkspaceShell>
+      <PageBody>
+        <PageHeader
+          eyebrow="Operations overview"
+          title="A calm view of the whole workspace."
+          description="Only real, owner-scoped records are shown. Nothing is estimated, simulated, or marked published without a provider response."
+          action={<span className="badge badge-neutral">Live data</span>}
+        />
 
-      {error ? <p role="alert" className="mx-auto mt-8 max-w-6xl rounded-lg bg-red-50 p-4 text-[var(--danger)]">{error}</p> : null}
-      {!summary && !error ? <p className="mx-auto mt-8 max-w-6xl text-[var(--muted)]">Memuat ringkasan…</p> : null}
-
-      {summary ? (
-        <section className="mx-auto mt-8 max-w-6xl">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {metricLabels.map(([key, label]) => (
-              <article key={key} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-                <p className="text-sm text-[var(--muted)]">{label}</p>
-                <p className="mt-3 text-3xl font-semibold tabular-nums">{summary[key]}</p>
-              </article>
+        {error ? <div className="mt-7"><Notice>{error}</Notice></div> : null}
+        {!summary && !error ? (
+          <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((key) => (
+              <div key={key} className="card-flat h-28 animate-pulse bg-[var(--surface-muted)]" />
             ))}
-            <article className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-              <p className="text-sm text-[var(--muted)]">Estimasi biaya AI</p>
-              <p className="mt-3 text-lg font-medium">Belum tersedia</p>
-            </article>
           </div>
+        ) : null}
 
-          <section className="mt-8 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm" aria-labelledby="system-status">
-            <h2 id="system-status" className="text-lg font-semibold">Status sistem</h2>
-            <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {Object.entries(summary.services).map(([service, serviceStatus]) => (
-                <div key={service}>
-                  <dt className="text-sm capitalize text-[var(--muted)]">{service}</dt>
-                  <dd className="mt-1 font-medium">{serviceStatus === "not_configured" ? "Belum dikonfigurasi" : "Siap"}</dd>
+        {summary ? (
+          <div className="mt-8 space-y-8">
+            <section aria-labelledby="metrics">
+              <SectionTitle title="This workspace" hint="Counts come directly from approved, scheduled, and published records." />
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {metrics.map(([key, label, hint]) => (
+                  <Stat key={key} label={label} value={summary[key]} hint={hint} />
+                ))}
+                <div className="card-flat border-dashed p-4">
+                  <p className="text-[0.66rem] font-bold uppercase tracking-[0.12em] text-[var(--muted)]">AI cost</p>
+                  <p className="display mt-2 text-2xl font-semibold text-[var(--muted)]">Not tracked</p>
+                  <p className="mt-1 text-[0.68rem] text-[var(--muted)]">No billing integration is connected.</p>
                 </div>
-              ))}
-            </dl>
-          </section>
-        </section>
-      ) : null}
-    </main></WorkspaceShell>
+              </div>
+            </section>
+
+            <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+              <section className="card p-5 md:p-6" aria-labelledby="quick-actions">
+                <SectionTitle title="Next moves" hint="A short path from idea to confirmed post." />
+                <div className="divide-line">
+                  {quickActions.map(({ href, label, detail, Icon }) => (
+                    <Link key={href} href={href} className="group flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
+                      <span className="flex items-center gap-3">
+                        <span className="grid h-10 w-10 place-items-center rounded-full bg-[var(--paper-deep)] text-[var(--forest)]">
+                          <Icon />
+                        </span>
+                        <span>
+                          <span className="block text-sm font-semibold">{label}</span>
+                          <span className="block text-xs text-[var(--muted)]">{detail}</span>
+                        </span>
+                      </span>
+                      <ArrowUpRightIcon className="text-[var(--muted)] transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                    </Link>
+                  ))}
+                </div>
+              </section>
+
+              <section className="card p-5 md:p-6" aria-labelledby="system-status">
+                <SectionTitle title="System status" hint="Configured means the service is present and reachable." />
+                <dl className="space-y-3">
+                  {Object.entries(summary.services).map(([service, serviceStatus]) => (
+                    <div key={service} className="flex items-center justify-between gap-3 rounded-[var(--radius-sm)] bg-[var(--surface-muted)] px-3 py-2.5">
+                      <dt className="text-sm capitalize text-[var(--ink-soft)]">{service}</dt>
+                      <dd>
+                        <StatusBadge status={serviceStatus === "not_configured" ? "not configured" : "ready"} />
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            </div>
+          </div>
+        ) : null}
+      </PageBody>
+    </WorkspaceShell>
   );
 }

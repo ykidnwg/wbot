@@ -11,7 +11,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.content import MediaAsset
-from app.providers.image import GeneratedImage
+from app.providers.caption import ProviderError
+from app.providers.image import GeneratedImage, detect_image
 
 
 @dataclass(frozen=True)
@@ -53,11 +54,17 @@ class ObjectStorage:
 
 def validate_image(image: GeneratedImage, *, max_size_bytes: int = 10_000_000) -> ValidatedMedia:
     size = len(image.data)
-    if image.mime_type != "image/png":
-        raise ValueError("Unsupported image MIME type")
     if size == 0 or size > max_size_bytes:
         raise ValueError("Image size is outside the allowed range")
-    width, height = _read_png_dimensions(image.data)
+    if image.mime_type == "image/png":
+        width, height = _read_png_dimensions(image.data)
+    else:
+        try:
+            mime_type, width, height = detect_image(image.data)
+        except ProviderError as exc:
+            raise ValueError(exc.safe_message) from exc
+        if mime_type != image.mime_type:
+            raise ValueError("Image MIME type does not match its content")
     if (width, height) != (image.width, image.height) or width < 1 or height < 1:
         raise ValueError("Image dimensions are invalid")
     return ValidatedMedia(
@@ -117,7 +124,8 @@ async def create_media_asset(
 ) -> MediaAsset:
     validated = validate_image(image)
     asset_id = uuid4()
-    key = f"{owner_id}/{asset_id}.png"
+    extension = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp"}[validated.mime_type]
+    key = f"{owner_id}/{asset_id}.{extension}"
     storage.put(key, image.data)
     asset = MediaAsset(
         id=asset_id,

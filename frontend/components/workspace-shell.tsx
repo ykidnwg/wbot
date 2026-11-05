@@ -5,24 +5,54 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { ReactNode } from "react";
 
+import {
+  CalendarIcon,
+  ChartIcon,
+  DocumentIcon,
+  HomeIcon,
+  ImageIcon,
+  LinkIcon,
+  MenuIcon,
+  PanelIcon,
+  SendIcon,
+  SettingsIcon,
+  UsersIcon,
+} from "@/components/icons";
+
 const navigation = [
-  { title: "Workspace", items: [
-    ["/dashboard", "Overview"],
-    ["/accounts", "Social accounts"],
-    ["/personas", "Personas"],
-    ["/content", "Content"],
-    ["/media", "Media library"],
-    ["/calendar", "Calendar"],
-    ["/publishing", "Publishing queue"],
-  ] },
-  { title: "Management", items: [
-    ["/campaign-links", "Campaigns"],
-    ["/analytics", "Analytics"],
-  ] },
-  { title: "System", items: [
-    ["/settings", "Settings"],
-  ] },
+  {
+    title: "Workspace",
+    items: [
+      ["/dashboard", "Overview", HomeIcon],
+      ["/accounts", "Social accounts", UsersIcon],
+      ["/personas", "Personas", UsersIcon],
+      ["/content", "Content studio", DocumentIcon],
+      ["/media", "Media library", ImageIcon],
+      ["/calendar", "Calendar", CalendarIcon],
+      ["/publishing", "Publishing queue", SendIcon],
+    ],
+  },
+  {
+    title: "Growth",
+    items: [
+      ["/campaign-links", "Campaigns", LinkIcon],
+      ["/analytics", "Analytics", ChartIcon],
+    ],
+  },
+  {
+    title: "System",
+    items: [["/settings", "Settings", SettingsIcon]],
+  },
 ] as const;
+
+function sectionTitle(pathname: string): string {
+  for (const group of navigation) {
+    for (const [href, label] of group.items) {
+      if (pathname === href || pathname.startsWith(`${href}/`)) return label;
+    }
+  }
+  return "Workspace";
+}
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "";
@@ -35,27 +65,73 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className={`min-h-screen lg:grid ${collapsed ? "lg:grid-cols-[76px_1fr]" : "lg:grid-cols-[248px_1fr]"}`}>
-      <aside className={`${mobileOpen ? "fixed inset-0 z-30 block w-72" : "hidden"} border-b border-[var(--border)] bg-white px-4 py-5 lg:relative lg:block lg:min-h-screen lg:border-b-0 lg:border-r lg:px-5`}>
-        <div className="flex items-center justify-between">
-          <Link href="/dashboard" className="block text-sm font-bold tracking-[0.16em] text-[var(--primary)]">
-            {collapsed ? "WB" : "WBOT"}
+    <div
+      className={`min-h-screen lg:grid ${
+        collapsed ? "lg:grid-cols-[82px_1fr]" : "lg:grid-cols-[256px_1fr]"
+      }`}
+    >
+      {mobileOpen ? (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-20 bg-[#1b1a16]/40 backdrop-blur-[2px] lg:hidden"
+        />
+      ) : null}
+
+      <aside
+        className={`${
+          mobileOpen ? "fixed inset-y-0 left-0 z-30 flex w-72" : "hidden"
+        } flex-col bg-[var(--forest)] px-4 py-5 text-[#f4f0e7] lg:sticky lg:top-0 lg:flex lg:h-screen lg:border-r lg:border-[#172e28] lg:px-4`}
+      >
+        <div className="flex items-center justify-between px-1">
+          <Link href="/dashboard" className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-full bg-[var(--accent)] text-sm font-black tracking-tight text-white">
+              W
+            </span>
+            {!collapsed ? (
+              <span>
+                <span className="block text-sm font-bold tracking-[0.16em]">WBOT</span>
+                <span className="block text-[0.62rem] text-[#b8c8c1]">social operations</span>
+              </span>
+            ) : null}
           </Link>
-          <button type="button" onClick={() => setCollapsed((value) => !value)} className="hidden rounded-md p-2 text-[var(--muted)] hover:bg-slate-100 lg:block" aria-label="Toggle sidebar">
-            {collapsed ? "»" : "«"}
+          <button
+            type="button"
+            onClick={() => setCollapsed((value) => !value)}
+            className="hidden rounded-full p-2 text-[#a9bdb5] hover:bg-white/10 hover:text-white lg:block"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <PanelIcon />
           </button>
         </div>
-        {!collapsed && <p className="mt-1 text-xs text-[var(--muted)]">Social operations workspace</p>}
-        <nav aria-label="Main navigation" className="mt-8 space-y-6">
+
+        <nav aria-label="Main navigation" className="mt-9 flex-1 space-y-7 overflow-y-auto">
           {navigation.map((group) => (
             <div key={group.title}>
-              {!collapsed && <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">{group.title}</p>}
+              {!collapsed ? (
+                <p className="mb-2 px-3 text-[0.6rem] font-bold uppercase tracking-[0.18em] text-[#8fa79e]">
+                  {group.title}
+                </p>
+              ) : null}
               <div className="space-y-1">
-                {group.items.map(([href, label]) => {
+                {group.items.map(([href, label, Icon]) => {
                   const active = pathname === href || pathname.startsWith(`${href}/`);
                   return (
-                    <Link key={href} href={href} title={collapsed ? label : undefined} onClick={() => setMobileOpen(false)} className={`block rounded-md px-3 py-2 text-sm transition-colors ${active ? "bg-blue-50 font-semibold text-blue-800" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"} ${collapsed ? "text-center" : ""}`}>
-                      {collapsed ? label.slice(0, 1) : label}
+                    <Link
+                      key={href}
+                      href={href}
+                      title={collapsed ? label : undefined}
+                      aria-current={active ? "page" : undefined}
+                      onClick={() => setMobileOpen(false)}
+                      className={`flex items-center gap-3 rounded-[var(--radius-sm)] px-3 py-2.5 text-[0.82rem] transition-colors ${
+                        active
+                          ? "bg-[#f4f0e7] font-semibold text-[var(--forest)]"
+                          : "text-[#c2d2cb] hover:bg-white/8 hover:text-white"
+                      } ${collapsed ? "justify-center" : ""}`}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      {!collapsed ? <span className="truncate">{label}</span> : null}
                     </Link>
                   );
                 })}
@@ -63,20 +139,40 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
             </div>
           ))}
         </nav>
-        {!collapsed && <div className="absolute bottom-5 left-5 right-5 hidden rounded-lg border border-[var(--border)] bg-slate-50 p-3 lg:block">
-          <p className="text-xs font-semibold">Workspace owner</p>
-          <p className="mt-1 truncate text-xs text-[var(--muted)]">Authenticated session</p>
-        </div>}
-      </aside>
-      <div className="min-w-0">
-        <header className="flex items-center justify-between border-b border-[var(--border)] bg-white px-5 py-3 md:px-8">
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={() => setMobileOpen(true)} className="rounded-md p-2 text-[var(--muted)] hover:bg-slate-100 lg:hidden" aria-label="Open navigation">☰</button>
-            <span className="text-sm font-medium text-slate-700">{pathname === "/dashboard" ? "Overview" : "Workspace"}</span>
+
+        {!collapsed ? (
+          <div className="mt-6 rounded-[var(--radius-md)] border border-white/10 bg-white/5 p-3">
+            <p className="text-[0.66rem] font-bold uppercase tracking-[0.14em] text-[#8fa79e]">Workspace</p>
+            <p className="mt-1 text-sm font-medium">Owner session</p>
+            <p className="mt-0.5 text-[0.68rem] text-[#9eb3aa]">Private, owner-scoped data</p>
           </div>
-          <button onClick={signOut} className="rounded-md px-3 py-2 text-sm font-medium text-[var(--muted)] hover:bg-slate-100">
-            Sign out
-          </button>
+        ) : null}
+      </aside>
+
+      <div className="min-w-0">
+        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--line)] bg-[var(--paper)]/90 px-5 py-3 backdrop-blur md:px-10">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileOpen(true)}
+              className="rounded-full p-2 text-[var(--ink-soft)] hover:bg-[var(--paper-deep)] lg:hidden"
+              aria-label="Open navigation"
+            >
+              <MenuIcon />
+            </button>
+            <div>
+              <p className="text-[0.6rem] font-bold uppercase tracking-[0.16em] text-[var(--muted)]">Workspace</p>
+              <p className="text-sm font-semibold">{sectionTitle(pathname)}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href="/content" className="btn btn-secondary hidden sm:inline-flex">
+              New content
+            </Link>
+            <button onClick={() => void signOut()} className="btn btn-ghost">
+              Sign out
+            </button>
+          </div>
         </header>
         {children}
       </div>

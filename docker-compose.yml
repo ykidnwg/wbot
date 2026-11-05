@@ -42,6 +42,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - media_data:/tmp/ai-social-media
     ports:
       - "8000:8000" # Development only; remove in the production Compose override.
     healthcheck:
@@ -50,6 +52,24 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
+    networks: [internal]
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+    env_file: .env
+    command: >
+      sh -c "alembic upgrade head && python -m app.worker"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    volumes:
+      - media_data:/tmp/ai-social-media
     networks: [internal]
     restart: unless-stopped
 
@@ -78,3 +98,4 @@ networks:
 volumes:
   postgres_data_v16_local:
   redis_data:
+  media_data:

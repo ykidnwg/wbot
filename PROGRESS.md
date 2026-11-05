@@ -1,5 +1,29 @@
 # Progress
 
+## 2026-11-02 - Scheduling, publishing, campaigns, analytics, and the operations UI
+
+### Implemented
+
+- Added forward migration `20261102_0008` for schedules, publishing jobs/attempts, campaigns, campaign links/clicks, and the `content_items.media_asset_id` link.
+- Added a durable schedule lifecycle with owned-content/target/assignment validation, idempotent creation, cancellation, and content state transitions.
+- Added a database-backed worker (`python -m app.worker`) plus Compose `worker` service. Due schedules become publishing jobs; retries use exponential backoff only for retryable categories. Auth failures become `needs_credentials`; ambiguous POST outcomes become `uncertain` and are never retried automatically. Claims are committed before the platform call, and jobs left running by a crashed worker are recovered as `uncertain` after 15 minutes.
+- Added a Facebook Page Graph publisher (text and image posts), decoding encrypted Page tokens only inside the worker. Publishing failures are categorized without exposing secrets.
+- Added OpenAI-compatible caption (`/chat/completions`) and image (`/images/generations`) adapters, including base64-only image handling, size mapping, PNG/JPEG/WebP validation, and honest missing-credential states. Mocks remain the default.
+- Added provider-status, schedule, publishing-job, campaign/link, public tracked redirect (`/r/{tracking_id}`), and first-party analytics APIs.
+- Rebuilt the workspace visual system and the dashboard, content studio, media library, calendar, publishing queue, campaigns, analytics, settings, and sign-in pages in a warm editorial style. No external runtime font or CDN dependency was added.
+- Added backend coverage for schedules, worker success and missing-credential paths, campaigns/clicks/analytics, provider status, and missing credentials. Existing media tests were updated for the new deterministic `1024x1024` mock output. Additional coverage verifies media/version snapshots, naive schedule times interpreted in the selected IANA timezone, and stale-worker recovery.
+
+### Validation actually performed
+
+- Backend Docker checks passed: Ruff, strict mypy, `51` pytest tests. Frontend passed ESLint, TypeScript, `4` Vitest tests, and the Next.js production build.
+- `docker compose up -d --build` applied migration `0008` against PostgreSQL; PostgreSQL, Redis, backend, frontend, and worker containers started. Backend and frontend health checks passed.
+- Live authenticated smoke test passed against the running Compose stack: login `204`, dashboard `200`, providers `200`, analytics `200`.
+- Live publishing could not be exercised because Meta credentials and a connected Page are not configured. Live AI calls were not made because no paid provider key was configured. Mock/contract paths are covered by tests.
+
+### Remaining
+
+- Instagram/Threads/X publishing adapters, Redis-backed distributed rate limiting, budget enforcement, S3-compatible media storage, production TLS/reverse proxy, backups/monitoring, and deployment rollback automation.
+- External reach/impressions and AI billing analytics remain unavailable by design until official integrations exist.
 ## 2026-11-01 — Social account foundation
 
 - Added forward migration `20261101_0007` for encrypted Facebook connections, OAuth states, social targets, and persona assignments.

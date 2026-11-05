@@ -65,6 +65,9 @@ class ContentItem(Base):
     generation_job_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("generation_jobs.id", ondelete="RESTRICT"), unique=True
     )
+    media_asset_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("media_assets.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     platform: Mapped[str] = mapped_column(
         String(20), default="unassigned", server_default="unassigned"
     )
@@ -93,6 +96,9 @@ class ContentVersion(Base):
     )
     version_no: Mapped[int] = mapped_column(Integer)
     caption: Mapped[str] = mapped_column(Text)
+    media_asset_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("media_assets.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     provider: Mapped[str] = mapped_column(String(120))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

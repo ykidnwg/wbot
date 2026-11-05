@@ -29,6 +29,23 @@ class Settings(BaseSettings):
     meta_oauth_redirect_uri: str | None = None
     meta_graph_api_version: str = "v26.0"
     token_encryption_key: str | None = Field(default=None, repr=False)
+    openai_api_key: str | None = Field(default=None, repr=False)
+    openai_api_base: str = "https://api.openai.com/v1"
+    worker_inline: bool = False
+    worker_poll_seconds: float = Field(default=15.0, ge=1.0, le=300.0)
+    media_storage_root: str = "/tmp/ai-social-media"
+    browser_headless: bool = True
+    browser_no_sandbox: bool = False
+    browser_login_timeout_seconds: float = Field(default=300.0, ge=10.0, le=3600.0)
+    browser_worker_poll_seconds: float = Field(default=15.0, ge=1.0, le=300.0)
+    browser_facebook_base_url: str = "https://www.facebook.com"
+    browser_facebook_publish_enabled: bool = False
+    browser_facebook_composer_url: str | None = None
+    browser_facebook_authenticated_selector: str = '[aria-label="Your profile"]'
+    browser_facebook_caption_selector: str = '[contenteditable="true"][role="textbox"]'
+    browser_facebook_submit_selector: str = '[aria-label="Post"]'
+    browser_facebook_success_selector: str | None = None
+    browser_facebook_media_input_selector: str = 'input[type="file"]'
 
     @model_validator(mode="after")
     def validate_security_configuration(self) -> Settings:

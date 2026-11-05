@@ -56,3 +56,20 @@ TOKEN_ENCRYPTION_KEY=
 The redirect URI must match the URI configured in the Meta app exactly. Generate
 the encryption key with a trusted secret-management tool and rotate it only with
 a planned token re-encryption migration.
+
+## Publishing (implemented)
+
+The worker publishes text to `/{page-id}/feed` and images to `/{page-id}/photos`
+with the encrypted Page access token. A post is marked `published` only when the
+Graph response returns an `id` or `post_id`.
+
+- Authentication/permission/validation failures stop without retrying.
+- Rate limits and non-ambiguous temporary/network failures retry with backoff.
+- Timeouts and 5xx responses during the POST are marked `uncertain` because the
+  post may have been created. They are never retried automatically; a human must
+  check the Page before using the manual retry endpoint.
+- The published URL is derived from the returned post id when it contains a
+  numeric story id; otherwise the external id is stored without inventing a URL.
+- Tests use a fake publisher and make no Meta API calls. Live publishing was not
+  exercised in this environment because Meta credentials and a connected Page
+  were not configured.

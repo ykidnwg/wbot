@@ -44,3 +44,20 @@ Image foundation coverage includes deterministic mock output, PNG integrity reje
 Social foundation coverage includes one-time OAuth state hashing/expiry behavior,
 AES-GCM token envelopes, missing-credential status, target owner isolation,
 approved-persona assignment validation, and assignment persistence/removal.
+
+## 2026-11-02 scheduling/publishing/campaign validation
+
+Latest recorded execution (Docker):
+
+- Backend: Ruff passed, strict mypy passed, `51` pytest tests passed.
+- Frontend: ESLint passed, `tsc --noEmit` passed, `4` Vitest tests passed, Next.js production build passed.
+- Compose: migration `20261102_0008` applied to PostgreSQL; PostgreSQL, Redis, backend, worker, and frontend started; backend/frontend health checks passed.
+- Live authenticated smoke: login `204`, dashboard `200`, providers `200`, analytics `200`.
+- Not tested live: Meta OAuth/publishing (no credentials/Page), paid AI calls (no key). These paths are covered by deterministic fakes and missing-credential tests.
+
+### New contract tests
+
+- `test_scheduling.py`: idempotent creation, cancellation/content rollback, future-time validation, naive timezone interpretation, owner isolation, worker success state changes, credential-blocked jobs, and stale-worker recovery to `uncertain`.
+- `test_campaigns.py`: campaign/link creation, UTM/tracking URL generation, public redirect and click persistence, analytics totals, owner isolation, unsafe URL rejection.
+- `test_providers.py`: mock labeling, live-provider selection without a key, `NEEDS_CREDENTIALS` generation responses, invalid setting rejection.
+- `test_media.py`: deterministic `1024x1024` mock image validation, owner-isolation flow, and immutable content-version snapshots when media is attached.

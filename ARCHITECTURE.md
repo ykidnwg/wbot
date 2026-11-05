@@ -76,3 +76,32 @@ only approved personas and active social targets. The current milestone discover
 does not publish content.
 
 Development uses `docker compose up --build`. Production will use a separate override and Caddy configuration after domain, storage, backup target, and credentials are supplied. PostgreSQL/Redis stay on the private Compose network; credentials come from a secret manager or deployment environment, not `compose.yml`. Backups, restore verification, image pruning, and rollback procedure are documented before M8 approval.
+
+## Scheduling and publishing architecture (implemented)
+
+The API and worker share PostgreSQL as the durable queue. There is no in-memory job state and no requirement that a request process survive a task.
+
+1. A schedule is created only for owned, approved content and an owned active target with a matching persona assignment.
+2. The worker (`python -m app.worker`) claims due schedules with row locks, creates one publishing job per schedule idempotency key, and marks the schedule `publishing`.
+3. The worker claims `queued`/`retry_wait` jobs and commits the `running` claim before calling the platform. This makes a crash visible as a stale job instead of silently replaying a possibly completed POST.
+4. Jobs left `running` for more than 15 minutes are recovered as `uncertain`; the schedule and content become `uncertain` and a human must verify the platform before retrying.
+5. Tokens are decrypted only inside the worker. The provider is called after the claim is durable.
+6. Success is recorded only when the provider returns an external post id. The schedule and content become `published`.
+7. Retryable failures (`rate_limit`, non-ambiguous `temporary`, non-ambiguous `network`) use exponential backoff. Authentication/permission/validation failures stop. Timeouts and 5xx POST outcomes become `uncertain` and are not retried automatically.
+8. Every attempt is append-only and stores a safe category/summary, never a secret.
+
+Schedule input without a timezone offset is resolved through the supplied IANA timezone before being stored in UTC. Campaign tracking ids are globally unique because the public `/r/{tracking_id}` route has no owner context.
+
+### Provider boundaries
+
+- `CaptionProvider` / `ImageProvider`: mock implementations plus an OpenAI-compatible adapter. The image adapter accepts only base64 responses; server-side URL fetching is intentionally disabled to avoid SSRF.
+- `Publisher` / `FacebookPagePublisher`: Graph API `/feed` or `/photos` with categorized failures.
+- Provider status is derived from settings plus server environment presence, never from secret values.
+
+### Campaign tracking
+
+`/r/{tracking_id}` records a first-party click row then redirects to a stored HTTP(S) URL with UTM and `wbot_tracking_id`. No server scraping, external analytics SDK, or fabricated reach data is involved.
+
+### Frontend
+
+The Next.js workspace uses one owner session, a server-side backend proxy, and a warm editorial design system (paper, ink, forest, persimmon). Pages are client components that call the existing same-origin API proxy; no secret is exposed to the browser.
